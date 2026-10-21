@@ -1,609 +1,499 @@
-<!DOCTYPE html>
-<html class="dark" lang="en">
+<!doctype html>
+<html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>TaskOps</title>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-<script id="tailwind-config">
-  tailwind.config = {
-    darkMode: "class",
-    theme: {
-      extend: {
-        colors: {
-          "inverse-primary": "#732ee4",
-          "secondary-fixed-dim": "#4cd7f6",
-          "tertiary-fixed-dim": "#ffb2b7",
-          "on-tertiary-fixed": "#40000d",
-          "primary-fixed-dim": "#d2bbff",
-          "on-error": "#690005",
-          "surface-container-highest": "#2d3449",
-          "surface-bright": "#31394d",
-          "on-background": "#dae2fd",
-          "primary": "#d2bbff",
-          "primary-fixed": "#eaddff",
-          "surface-container-high": "#222a3d",
-          "on-error-container": "#ffdad6",
-          "primary-container": "#7c3aed",
-          "error-container": "#93000a",
-          "outline-variant": "#4a4455",
-          "inverse-surface": "#dae2fd",
-          "error": "#ffb4ab",
-          "on-secondary-container": "#00424e",
-          "surface-container": "#171f33",
-          "on-tertiary-fixed-variant": "#92002a",
-          "outline": "#958da1",
-          "surface-tint": "#d2bbff",
-          "surface-dim": "#0b1326",
-          "on-tertiary-container": "#ffdedf",
-          "on-primary-container": "#ede0ff",
-          "secondary-fixed": "#acedff",
-          "tertiary-fixed": "#ffdadb",
-          "surface-variant": "#2d3449",
-          "on-tertiary": "#67001b",
-          "surface-container-lowest": "#060e20",
-          "on-secondary": "#003640",
-          "on-surface-variant": "#ccc3d8",
-          "on-primary-fixed-variant": "#5a00c6",
-          "secondary-container": "#03b5d3",
-          "on-surface": "#dae2fd",
-          "tertiary-container": "#c81a42",
-          "inverse-on-surface": "#283044",
-          "tertiary": "#ffb2b7",
-          "on-secondary-fixed": "#001f26",
-          "on-primary-fixed": "#25005a",
-          "surface-container-low": "#131b2e",
-          "background": "#0b1326",
-          "on-secondary-fixed-variant": "#004e5c",
-          "surface": "#0b1326",
-          "secondary": "#4cd7f6",
-          "on-primary": "#3f008e"
-        },
-        borderRadius: {
-          DEFAULT: "0.25rem",
-          lg: "0.5rem",
-          xl: "0.75rem",
-          full: "9999px"
-        },
-        spacing: {
-          gutter: "20px",
-          "container-max": "1440px",
-          "sidebar-width": "260px",
-          unit: "4px",
-          md: "16px",
-          sm: "8px",
-          xl: "32px",
-          lg: "24px",
-          xs: "4px"
-        },
-        fontFamily: {
-          "body-base": ["Inter"],
-          "display-xl": ["Inter"],
-          "label-uppercase": ["Inter"],
-          "headline-md": ["Inter"],
-          "body-sm": ["Inter"]
-        },
-        fontSize: {
-          "body-base": ["16px", { lineHeight: "1.5", letterSpacing: "0", fontWeight: "400" }],
-          "display-xl": ["36px", { lineHeight: "1.2", letterSpacing: "-0.02em", fontWeight: "700" }],
-          "label-uppercase": ["12px", { lineHeight: "1", letterSpacing: "0.05em", fontWeight: "700" }],
-          "headline-md": ["24px", { lineHeight: "1.3", letterSpacing: "-0.01em", fontWeight: "600" }],
-          "body-sm": ["14px", { lineHeight: "1.4", letterSpacing: "0", fontWeight: "400" }]
-        }
-      }
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1326">
+  <title>TaskOps — Workflow Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg:#0d1015; --sidebar:#11151b; --surface:#161b23; --surface-2:#1c222c;
+      --surface-3:#232b36; --text:#f1f3f6; --muted:#929ba9; --line:#29313c;
+      --primary:#91a7ff; --primary-soft:#1d2845; --green:#65c39a; --amber:#d7ad62;
+      --red:#e27d8d; --shadow:0 20px 50px rgba(0,0,0,.28);
     }
-  }
-</script>
-<style>
-  * { box-sizing: border-box; }
-
-  .material-symbols-outlined {
-    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-    display: inline-block;
-    vertical-align: middle;
-  }
-
-  /* Glassmorphism panel */
-  .glass-panel {
-    background: rgba(30, 41, 59, 0.65);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(149, 141, 161, 0.12);
-  }
-
-  /* Shimmer animation for active progress bars */
-  .progress-shimmer {
-    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.22) 50%, transparent 100%);
-    background-size: 200% 100%;
-    animation: shimmer 2s infinite linear;
-  }
-  @keyframes shimmer {
-    0%   { background-position: -200% 0; }
-    100% { background-position:  200% 0; }
-  }
-
-  /* Subtle grid noise texture on the body */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image:
-      radial-gradient(ellipse 80% 60% at 60% -10%, rgba(124,58,237,0.18) 0%, transparent 70%),
-      radial-gradient(ellipse 50% 40% at 10% 80%, rgba(3,181,211,0.08) 0%, transparent 60%);
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  /* Sidebar active glow */
-  .nav-active {
-    background: rgba(124, 58, 237, 0.15);
-    color: #d2bbff;
-    border-right: 2px solid #7c3aed;
-    box-shadow: inset 0 0 12px rgba(124,58,237,0.08);
-  }
-
-  /* Card hover glow */
-  .task-card:hover {
-    border-color: rgba(210,187,255,0.25) !important;
-    box-shadow: 0 0 24px rgba(124,58,237,0.12);
-  }
-
-  /* Button primary glow */
-  .btn-primary:hover {
-    filter: brightness(1.12);
-    box-shadow: 0 0 20px rgba(210,187,255,0.45);
-  }
-  .btn-primary:active { transform: scale(0.98); }
-
-  /* Resume button hover */
-  .btn-resume:hover {
-    background: #7c3aed;
-    border-color: rgba(210,187,255,0.2);
-  }
-
-  /* Chart bar hover */
-  .chart-bar:hover { background: rgba(124,58,237,0.5) !important; }
-
-  /* Sidebar nav link hover */
-  .nav-link:hover {
-    background: rgba(255,255,255,0.04);
-    color: #e2e8f0;
-  }
-
-  /* Notification button hover */
-  .btn-icon:hover { color: #d2bbff; }
-
-  /* Pulse dot */
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50%       { opacity: 0.6; transform: scale(0.8); }
-  }
-  .dot-pulse { animation: pulse 1.8s ease-in-out infinite; }
-
-  /* Scroll */
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: #0b1326; }
-  ::-webkit-scrollbar-thumb { background: #2d3449; border-radius: 9999px; }
-
-  /* Page fade-in */
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(14px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  .fade-up { animation: fadeUp 0.5s ease forwards; }
-  .fade-up-1 { animation-delay: 0.05s; opacity: 0; }
-  .fade-up-2 { animation-delay: 0.15s; opacity: 0; }
-  .fade-up-3 { animation-delay: 0.25s; opacity: 0; }
-  .fade-up-4 { animation-delay: 0.35s; opacity: 0; }
-  .fade-up-5 { animation-delay: 0.42s; opacity: 0; }
-  .fade-up-6 { animation-delay: 0.50s; opacity: 0; }
-
-  /* Hero image zoom on hover (handled via JS group) */
-  .hero-image { transition: transform 0.7s ease; }
-  .hero-wrapper:hover .hero-image { transform: scale(1.05); }
-</style>
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; min-height:100vh; font:14px/1.5 Inter,system-ui,sans-serif; color:var(--text); background:var(--bg); }
+    button,input,textarea,select { font:inherit; }
+    button { cursor:pointer; }
+    button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible { outline:2px solid var(--primary); outline-offset:2px; }
+    svg { display:block; }
+    .hidden { display:none !important; }
+    .muted { color:var(--muted); }
+    .sidebar { position:fixed; inset:0 auto 0 0; width:232px; padding:21px 13px; display:flex; flex-direction:column; background:var(--sidebar); border-right:1px solid var(--line); z-index:30; }
+    .brand { display:flex; align-items:center; gap:10px; padding:0 9px; margin-bottom:31px; }
+    .brand-mark { width:31px; height:31px; border-radius:8px; display:grid; place-items:center; color:#0d1015; background:#f3f5f8; font-size:16px; font-weight:800; }
+    .brand h1 { margin:0; font-size:16px; letter-spacing:-.03em; }
+    .brand p { margin:0 0 0 7px; padding:1px 5px; color:#7e8897; border:1px solid var(--line); border-radius:4px; font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:.08em; }
+    .nav { display:grid; gap:3px; }
+    .nav-button { border:0; width:100%; padding:10px 11px; display:flex; align-items:center; gap:11px; border-radius:7px; color:#8993a2; background:transparent; text-align:left; font-weight:500; transition:background .16s,color .16s; }
+    .nav-button:hover { color:#dfe3e9; background:#171c23; }
+    .nav-button.active { color:#f5f7fa; background:#1c222b; }
+    .nav-icon { width:18px; color:#7f8998; }
+    .nav-button.active .nav-icon { color:var(--primary); }
+    .sidebar-footer { margin-top:auto; padding:14px 9px 0; border-top:1px solid var(--line); }
+    .storage-note { color:#6f7988; font-size:10px; display:flex; gap:7px; align-items:flex-start; }
+    .topbar { position:fixed; top:0; left:232px; right:0; height:64px; display:flex; align-items:center; gap:24px; padding:0 28px; background:rgba(13,16,21,.93); backdrop-filter:blur(14px); border-bottom:1px solid var(--line); z-index:20; }
+    .topbar h2 { margin:0; font-size:14px; font-weight:600; min-width:130px; }
+    .search { position:relative; flex:1; max-width:420px; }
+    .search input { width:100%; height:36px; color:var(--text); background:#131820; border:1px solid var(--line); border-radius:7px; padding:8px 12px 8px 36px; }
+    .search input::placeholder { color:#687383; }
+    .search span { position:absolute; left:12px; top:10px; color:#697483; }
+    .top-actions { margin-left:auto; display:flex; align-items:center; gap:11px; }
+    .avatar { width:32px; height:32px; border:1px solid #3b4655; border-radius:8px; display:grid; place-items:center; color:#cbd2dc; background:#1d242e; font-size:10px; font-weight:700; }
+    .btn { border:1px solid var(--line); color:#dfe4eb; background:#1a2029; border-radius:7px; padding:8px 13px; font-weight:600; transition:background .16s,border-color .16s; }
+    .btn:hover { border-color:#424d5c; background:#202731; }
+    .btn.primary { color:#111722; background:#aabaff; border-color:#aabaff; }
+    .btn.primary:hover { background:#bdc9ff; border-color:#bdc9ff; }
+    .btn.ghost { background:transparent; }
+    .btn.danger { color:#f1a6b2; border-color:#56313a; background:#25171b; }
+    .btn.small { padding:6px 9px; font-size:11px; }
+    .mobile-menu { display:none; border:0; color:var(--text); background:transparent; font-size:20px; }
+    main { margin-left:232px; padding:92px 28px 44px; min-height:100vh; }
+    .content { max-width:1180px; margin:0 auto; }
+    .view { animation:fade .18s ease; }
+    @keyframes fade { from{opacity:.35;transform:translateY(3px)} to{opacity:1;transform:none} }
+    .dashboard-head { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin-bottom:24px; }
+    .dashboard-head h1 { margin:0 0 3px; font-size:27px; line-height:1.25; letter-spacing:-.035em; font-weight:650; }
+    .dashboard-head p { margin:0; color:var(--muted); }
+    .composer { width:100%; min-height:76px; display:flex; align-items:center; gap:14px; padding:14px 16px; border:1px solid #323b48; border-radius:11px; color:#9ea8b6; background:#151a22; text-align:left; transition:border-color .16s,background .16s; }
+    .composer:hover { border-color:#506181; background:#171d26; }
+    .composer-plus { width:36px; height:36px; display:grid; place-items:center; flex:0 0 auto; border-radius:8px; color:#cbd5ff; background:var(--primary-soft); font-size:19px; }
+    .composer-copy { flex:1; }
+    .composer-copy b { display:block; margin-bottom:2px; color:#edf0f5; font-size:14px; }
+    .composer-copy span { color:#788392; font-size:12px; }
+    .composer-action { color:#a9b9ff; font-size:12px; font-weight:600; }
+    .summary-strip { display:grid; grid-template-columns:repeat(4,1fr); margin-top:13px; border:1px solid var(--line); border-radius:9px; background:#12171e; }
+    .summary-item { padding:13px 16px; border-right:1px solid var(--line); }
+    .summary-item:last-child { border-right:0; }
+    .summary-item strong { display:block; color:#e8ebf0; font-size:16px; font-weight:650; }
+    .summary-item span { color:#727d8d; font-size:10px; }
+    .section-head { display:flex; align-items:flex-end; justify-content:space-between; gap:15px; margin:29px 0 12px; }
+    .section-head h3 { margin:0; font-size:16px; font-weight:650; }
+    .section-head p { margin:2px 0 0; color:#7e8998; font-size:12px; }
+    .task-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:13px; }
+    .task-card { display:flex; flex-direction:column; min-height:265px; padding:17px; border:1px solid var(--line); border-radius:10px; background:var(--surface); transition:border-color .16s,background .16s; }
+    .task-card:hover { border-color:#3c4756; background:#181e27; }
+    .card-top { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .card-kicker { color:#778292; font-size:10px; font-weight:600; text-transform:capitalize; }
+    .task-icon { width:34px; height:34px; display:grid; place-items:center; border:1px solid #2d3744; border-radius:7px; background:#1a212a; color:#aebcff; font-size:11px; font-weight:700; }
+    .status { height:max-content; padding:3px 7px; border-radius:5px; font-size:9px; font-weight:650; border:1px solid; text-transform:capitalize; }
+    .status.active { color:#86d7b3; border-color:#294b3e; background:#14251f; }
+    .status.completed { color:#aab4c3; border-color:#39424e; background:#202630; }
+    .status.planned { color:#b9c5fb; border-color:#38456e; background:#1a223b; }
+    .task-card h4 { margin:15px 0 5px; font-size:16px; font-weight:650; letter-spacing:-.015em; }
+    .task-card .description { display:-webkit-box; min-height:40px; margin:0 0 16px; overflow:hidden; color:#8994a4; font-size:12px; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+    .progress-meta { display:flex; justify-content:space-between; color:#748091; font-size:10px; font-weight:600; }
+    .progress { height:5px; margin:6px 0 15px; overflow:hidden; border-radius:99px; background:#252d38; }
+    .progress span { display:block; height:100%; border-radius:inherit; background:#8fa4fb; }
+    .chips { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:16px; }
+    .chip { padding:3px 6px; color:#9ba5b3; border:1px solid #303945; border-radius:5px; background:#181e26; font-size:9px; text-decoration:none; }
+    .card-actions { display:flex; align-items:center; gap:7px; margin-top:auto; }
+    .card-due { margin-right:auto; color:#697585; font-size:10px; }
+    .empty { padding:50px 24px; text-align:center; border:1px dashed #343e4b; border-radius:10px; color:var(--muted); grid-column:1/-1; }
+    .panel-grid { display:grid; grid-template-columns:1.2fr 1fr; gap:13px; margin-top:13px; }
+    .panel { padding:18px; border:1px solid var(--line); border-radius:10px; background:var(--surface); }
+    .panel h4 { margin:0 0 14px; font-size:13px; font-weight:650; }
+    .overview-list { display:grid; grid-template-columns:repeat(3,1fr); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+    .overview-stat { padding:17px; border-right:1px solid var(--line); }
+    .overview-stat:last-child { border-right:0; }
+    .overview-stat strong { display:block; margin-bottom:2px; font-size:22px; font-weight:600; }
+    .overview-stat span { color:#758091; font-size:10px; }
+    .suggestion { display:flex; align-items:flex-start; gap:10px; padding:10px 0; border-top:1px solid var(--line); }
+    .suggestion:first-of-type { border-top:0; }
+    .suggestion > span { width:22px; height:22px; display:grid; place-items:center; flex:0 0 auto; border-radius:6px; color:#aebcff; background:#202a43; font-size:11px; }
+    .suggestion b { display:block; font-size:11px; font-weight:600; }
+    .suggestion small { display:block; margin-top:1px; color:#748091; font-size:10px; }
+    .page-title { margin:0; font-size:25px; letter-spacing:-.035em; font-weight:650; }
+    .page-subtitle { margin:4px 0 21px; color:var(--muted); }
+    .toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:9px; margin-bottom:15px; }
+    .select,.field { color:var(--text); border:1px solid var(--line); border-radius:7px; background:#131820; padding:9px 10px; }
+    .select { min-width:150px; }
+    .list { display:grid; gap:8px; }
+    .task-row { display:grid; grid-template-columns:auto minmax(0,1fr) 130px 110px auto; align-items:center; gap:14px; padding:13px; border:1px solid var(--line); border-radius:8px; background:var(--surface); }
+    .task-row h4 { margin:0 0 2px; font-size:13px; font-weight:600; }
+    .task-row p { margin:0; color:var(--muted); font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .priority { text-transform:capitalize; font-size:10px; font-weight:600; }
+    .priority.high { color:var(--red); } .priority.medium { color:var(--amber); } .priority.low { color:var(--green); }
+    .resource-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+    .resource { padding:16px; border:1px solid var(--line); border-radius:9px; background:var(--surface); }
+    .resource-top { display:flex; justify-content:space-between; gap:10px; }
+    .resource h4 { margin:0; font-size:13px; }
+    .resource p { min-height:36px; color:var(--muted); font-size:11px; }
+    .resource a { color:#aebcff; font-size:11px; text-decoration:none; }
+    .resource-total { color:#8792a1; font-size:11px; }
+    .resource-type { color:#9eacf0; font-size:9px; white-space:nowrap; }
+    .resource-origin { margin:11px 0 13px; color:#687485; font-size:9px; }
+    .resource-actions { display:flex; align-items:center; justify-content:space-between; gap:10px; border-top:1px solid var(--line); padding-top:11px; }
+    .workspace-section-head { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-top:24px; }
+    .workspace-section-head h4 { margin:0; }
+    .workspace-section-head p { margin:2px 0 0; color:#748091; font-size:10px; }
+    .workspace-section-actions { display:flex; gap:6px; }
+    .workspace-resource-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:10px; }
+    .workspace-resource { display:grid; grid-template-columns:1fr auto; gap:8px; padding:11px; border:1px solid var(--line); border-radius:7px; background:#12171e; }
+    .workspace-resource h5 { margin:0 0 2px; font-size:11px; }
+    .workspace-resource p { margin:0; color:#748091; font-size:9px; }
+    .workspace-resource-meta { margin-top:7px; color:#687485; font-size:9px; }
+    .workspace-resource-actions { display:flex; align-items:flex-start; gap:5px; }
+    .workspace-resource-actions a { padding:5px 7px; border:1px solid #354154; border-radius:5px; color:#b9c5fb; font-size:9px; text-decoration:none; }
+    .workspace-resource-actions button { width:25px; height:25px; }
+    .resource-form { display:grid; grid-template-columns:1fr 1.5fr auto; gap:7px; margin-top:8px; }
+    .resource-form .field { min-width:0; }
+    .analytics-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:13px; }
+    .metric { padding:17px; border:1px solid var(--line); border-radius:9px; background:var(--surface); }
+    .metric span { color:var(--muted); font-size:10px; font-weight:600; }
+    .metric strong { display:block; margin-top:5px; font-size:25px; font-weight:600; }
+    .settings-grid { display:grid; grid-template-columns:1fr 1fr; gap:13px; }
+    .setting { padding:19px; border:1px solid var(--line); border-radius:9px; background:var(--surface); }
+    .setting h4 { margin:0 0 5px; font-size:13px; }
+    .setting p { margin:0 0 14px; color:var(--muted); font-size:11px; }
+    .modal-backdrop { position:fixed; inset:0; display:grid; place-items:center; padding:20px; background:rgba(4,6,9,.78); backdrop-filter:blur(4px); z-index:100; }
+    .modal { width:min(650px,100%); max-height:min(850px,92vh); overflow:auto; border:1px solid #323b48; border-radius:11px; background:#151a22; box-shadow:var(--shadow); }
+    .modal.wide { width:min(820px,100%); }
+    .modal-head { position:sticky; top:0; z-index:2; display:flex; align-items:center; justify-content:space-between; padding:16px 19px; border-bottom:1px solid var(--line); background:rgba(21,26,34,.97); }
+    .modal-head h3 { margin:0; font-size:15px; font-weight:650; }
+    .icon-btn { width:31px; height:31px; display:grid; place-items:center; border:1px solid var(--line); border-radius:7px; color:var(--muted); background:#1a2029; }
+    .modal-body { padding:19px; }
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:13px; }
+    .form-group { display:grid; gap:6px; }
+    .form-group.full { grid-column:1/-1; }
+    label { color:#aeb6c2; font-size:10px; font-weight:600; }
+    textarea.field { min-height:112px; resize:vertical; }
+    .modal-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:18px; }
+    .workspace-summary { display:flex; justify-content:space-between; gap:15px; margin-bottom:17px; }
+    .workspace-summary p { margin:4px 0 0; color:var(--muted); font-size:12px; }
+    .steps { display:grid; gap:6px; }
+    .step { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:9px; padding:8px 9px; border:1px solid var(--line); border-radius:7px; background:#12171e; }
+    .step input[type=checkbox] { width:17px; height:17px; accent-color:var(--primary); }
+    .step input[type=text] { width:100%; padding:6px 7px; border:1px solid transparent; border-radius:5px; color:var(--text); background:transparent; }
+    .step input[type=text]:focus { border-color:#46536a; background:#171d25; }
+    .step.done input[type=text] { color:#6d7786; text-decoration:line-through; }
+    .add-step { display:flex; gap:7px; margin-top:9px; }
+    .add-step input { flex:1; }
+    .toast-region { position:fixed; right:20px; bottom:20px; z-index:150; display:grid; gap:8px; }
+    .toast { width:min(340px,calc(100vw - 40px)); padding:11px 13px; border:1px solid #364355; border-radius:8px; color:#e6eaf0; background:#1b222c; box-shadow:var(--shadow); animation:toastIn .18s ease; }
+    @keyframes toastIn { from{opacity:0;transform:translateY(6px)} }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    @media (max-width:1050px) { .task-grid,.resource-grid{grid-template-columns:repeat(2,1fr)} .analytics-grid{grid-template-columns:repeat(2,1fr)} }
+    @media (max-width:760px) {
+      .sidebar { transform:translateX(-100%); transition:.2s; }
+      .sidebar.open { transform:none; }
+      .topbar { left:0; padding:0 15px; gap:10px; }
+      .topbar h2,.avatar { display:none; }
+      .mobile-menu { display:block; }
+      main { margin-left:0; padding:84px 15px 35px; }
+      .task-grid,.resource-grid,.panel-grid,.settings-grid,.workspace-resource-grid { grid-template-columns:1fr; }
+      .task-row { grid-template-columns:auto 1fr auto; }
+      .task-row .row-progress,.task-row .priority { display:none; }
+      .dashboard-head { align-items:flex-start; }
+      .summary-strip { grid-template-columns:1fr 1fr; }
+      .summary-item:nth-child(2) { border-right:0; }
+      .summary-item:nth-child(-n+2) { border-bottom:1px solid var(--line); }
+      .form-grid { grid-template-columns:1fr; }
+      .form-group.full { grid-column:auto; }
+      .resource-form { grid-template-columns:1fr; }
+    }
+    @media (max-width:470px) { .search{display:none} .task-grid{grid-template-columns:1fr} .analytics-grid{grid-template-columns:1fr 1fr} .composer-action{display:none} .top-actions .primary{padding:7px 9px} }
+  </style>
 </head>
-
-<body class="bg-background text-on-background font-body-base min-h-screen relative">
-
-<!-- ───────────────────────────── SIDEBAR ───────────────────────────── -->
-<aside class="fixed left-0 top-0 h-screen w-[260px] flex flex-col py-6 z-50"
-       style="background:#0d1529; border-right:1px solid rgba(255,255,255,0.06); box-shadow:4px 0 32px rgba(0,0,0,0.5);">
-
-  <!-- Logo -->
-  <div class="px-6 mb-10 flex items-center gap-3">
-    <div class="w-10 h-10 rounded-xl flex items-center justify-center"
-         style="background:linear-gradient(135deg,#7c3aed,#4f18c8);">
-      <span class="material-symbols-outlined text-white text-xl"
-            style="font-variation-settings:'FILL' 1;">terminal</span>
-    </div>
-    <div>
-      <h1 class="text-xl font-black text-white tracking-tighter">TaskOps</h1>
-      <p class="text-[10px] text-slate-500 font-semibold tracking-widest uppercase">Workspace Control</p>
-    </div>
-  </div>
-
-  <!-- Nav -->
-  <nav class="flex-1 px-4 space-y-1">
-    <a href="#" class="nav-active flex items-center gap-3 px-4 py-3 rounded-lg font-semibold transition-all duration-200">
-      <span class="material-symbols-outlined text-[20px]"
-            style="font-variation-settings:'FILL' 1; color:#d2bbff;">dashboard</span>
-      <span class="text-sm font-medium tracking-wide text-[#d2bbff]">Dashboard</span>
-    </a>
-    <a href="#" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 transition-all duration-200">
-      <span class="material-symbols-outlined text-[20px]">assignment</span>
-      <span class="text-sm font-medium tracking-wide">My Tasks</span>
-    </a>
-    <a href="#" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 transition-all duration-200">
-      <span class="material-symbols-outlined text-[20px]">library_books</span>
-      <span class="text-sm font-medium tracking-wide">Resource Library</span>
-    </a>
-  </nav>
-
-  <!-- Bottom -->
-  <div class="px-4 mt-auto">
-    <div class="h-px w-full bg-slate-800/60 mb-4"></div>
-    <a href="#" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 transition-all duration-200">
-      <span class="material-symbols-outlined text-[20px]">logout</span>
-      <span class="text-sm font-medium tracking-wide">Logout</span>
-    </a>
-  </div>
-</aside>
-
-<!-- ───────────────────────────── TOP BAR ───────────────────────────── -->
-<header class="fixed top-0 left-[260px] right-0 z-40 flex items-center justify-between px-8 h-16"
-        style="background:rgba(7,14,32,0.85); backdrop-filter:blur(16px); border-bottom:1px solid rgba(255,255,255,0.06);">
-
-  <!-- Left: title + search -->
-  <div class="flex items-center gap-8 flex-1">
-    <h2 class="text-[15px] font-black text-white whitespace-nowrap">Dashboard — Overview</h2>
-    <div class="relative w-full max-w-md">
-      <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-[18px]">search</span>
-      <input type="text" placeholder="Search tasks or files…"
-             class="w-full rounded-full py-2 pl-10 pr-4 text-sm text-on-surface outline-none transition-all"
-             style="background:#131b2e; border:1px solid rgba(255,255,255,0.07);"
-             onfocus="this.style.borderColor='rgba(124,58,237,0.6)'; this.style.boxShadow='0 0 0 2px rgba(124,58,237,0.2)'"
-             onblur="this.style.borderColor='rgba(255,255,255,0.07)'; this.style.boxShadow='none'"/>
-    </div>
-  </div>
-
-  <!-- Right: links + actions -->
-  <div class="flex items-center gap-6">
-    <nav class="hidden lg:flex items-center gap-6">
-      <a href="#" class="text-white font-bold text-sm border-b-2 border-violet-500 py-5">Overview</a>
-      <a href="#" class="text-slate-400 hover:text-slate-200 transition-colors text-sm">Analytics</a>
-      <a href="#" class="text-slate-400 hover:text-slate-200 transition-colors text-sm">Settings</a>
+<body>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><div class="brand-mark">✓</div><h1>TaskOps</h1><p>Beta</p></div>
+    <nav class="nav" aria-label="Primary navigation">
+      <button class="nav-button active" data-view="dashboard"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Overview</button>
+      <button class="nav-button" data-view="tasks"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><path d="m3 6 1 1 2-2M3 12l1 1 2-2M3 18l1 1 2-2"/></svg>Tasks</button>
+      <button class="nav-button" data-view="resources"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 5.5v16M8 7h8M8 11h7"/></svg>Resources</button>
+      <button class="nav-button" data-view="analytics"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Analytics</button>
+      <button class="nav-button" data-view="settings"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 8.97 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.52-1.03H3v-4h.08A1.7 1.7 0 0 0 4.6 8.97a1.7 1.7 0 0 0-.34-1.88L4.2 7.03 7.03 4.2l.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 10 3.08V3h4v.08a1.7 1.7 0 0 0 1.03 1.52 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06a1.7 1.7 0 0 0-.34 1.88A1.7 1.7 0 0 0 20.92 10H21v4h-.08A1.7 1.7 0 0 0 19.4 15z"/></svg>Settings</button>
     </nav>
-    <div class="h-5 w-px bg-slate-800"></div>
-    <div class="flex items-center gap-4">
-      <button class="btn-icon text-slate-400 transition-colors relative">
-        <span class="material-symbols-outlined text-[22px]">notifications</span>
-        <span class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-violet-500"></span>
-      </button>
-      <button class="btn-primary bg-primary text-on-primary px-4 py-[7px] rounded-lg font-bold text-sm transition-all">
-        New Task
-      </button>
-      <div class="w-8 h-8 rounded-full border-2 border-violet-600/50 overflow-hidden flex-shrink-0"
-           style="background:linear-gradient(135deg,#7c3aed,#03b5d3);">
-        <div class="w-full h-full flex items-center justify-center text-white text-xs font-bold">BL</div>
-      </div>
+    <div class="sidebar-footer"><div class="storage-note"><span>◉</span><span>Your workspace is saved privately in this browser.</span></div></div>
+  </aside>
+
+  <header class="topbar">
+    <button class="mobile-menu" id="menuButton" aria-label="Open navigation">☰</button>
+    <h2 id="topTitle">Overview</h2>
+    <div class="search"><span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></span><label class="sr-only" for="globalSearch">Search tasks</label><input id="globalSearch" type="search" placeholder="Search your workspace" autocomplete="off"></div>
+    <div class="top-actions"><button class="btn primary" data-create>New task</button><div class="avatar" id="avatar">TO</div></div>
+  </header>
+
+  <main><div class="content" id="app" aria-live="polite"></div></main>
+  <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+
+  <template id="createTemplate">
+    <div class="modal-backdrop" data-backdrop>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="createTitle">
+        <header class="modal-head"><h3 id="createTitle">Create a workflow</h3><button class="icon-btn" data-close aria-label="Close">×</button></header>
+        <form class="modal-body" id="createForm">
+          <div class="form-grid">
+            <div class="form-group full"><label for="goal">What do you want to accomplish?</label><textarea class="field" id="goal" name="goal" required maxlength="600" placeholder="Example: Research renewable energy and prepare a five-page report for Friday"></textarea></div>
+            <div class="form-group"><label for="taskTitle">Task name (optional)</label><input class="field" id="taskTitle" name="title" maxlength="80" placeholder="We'll use a short version of your goal"></div>
+            <div class="form-group"><label for="priority">Priority</label><select class="select" id="priority" name="priority"><option value="medium">Medium</option><option value="high">High</option><option value="low">Low</option></select></div>
+            <div class="form-group"><label for="dueDate">Due date</label><input class="field" id="dueDate" name="due" type="date"></div>
+            <div class="form-group"><label for="category">Workflow type</label><select class="select" id="category" name="category"><option value="auto">Detect automatically</option><option value="research">Research & writing</option><option value="study">Study & learning</option><option value="development">Software project</option><option value="planning">Planning & organization</option></select></div>
+          </div>
+          <div class="modal-actions"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn primary" type="submit">Create workflow</button></div>
+        </form>
+      </section>
     </div>
-  </div>
-</header>
+  </template>
 
-<!-- ───────────────────────────── MAIN ───────────────────────────── -->
-<main class="ml-[260px] pt-16 min-h-screen">
-  <div class="p-8 max-w-7xl mx-auto space-y-6">
-
-    <!-- ── HERO CARD ── -->
-    <section class="fade-up fade-up-1">
-      <div class="hero-wrapper relative overflow-hidden glass-panel rounded-xl p-8 flex flex-col md:flex-row items-center justify-between gap-8"
-           style="border:1px solid rgba(124,58,237,0.18);">
-        <!-- Gradient overlay -->
-        <div class="absolute inset-0 pointer-events-none"
-             style="background:linear-gradient(120deg, rgba(124,58,237,0.12) 0%, transparent 60%)"></div>
-        <!-- Dot grid decoration -->
-        <div class="absolute right-0 top-0 w-64 h-64 pointer-events-none opacity-20"
-             style="background-image:radial-gradient(rgba(210,187,255,0.4) 1px, transparent 1px); background-size:24px 24px;"></div>
-
-        <!-- Text -->
-        <div class="relative z-10 space-y-4 max-w-2xl">
-          <div class="flex items-center gap-2">
-            <span class="flex items-center gap-1.5 bg-violet-500/15 text-violet-300 px-3 py-1 rounded-full text-[10px] font-bold tracking-[0.12em] uppercase border border-violet-500/20">
-              <span class="w-1.5 h-1.5 rounded-full bg-violet-400 dot-pulse"></span>
-              AI Engine Active
-            </span>
-          </div>
-          <h3 class="text-[36px] font-bold leading-tight tracking-tight text-white">Automate Your Workspace</h3>
-          <p class="text-on-surface-variant text-base leading-relaxed max-w-lg">
-            Start a new task and our AI will automatically provision environments, curate toolsets,
-            and sync dependencies for an instant flow-state setup.
-          </p>
-          <button class="btn-primary flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-lg font-bold text-base transition-all">
-            <span class="material-symbols-outlined text-[20px]" style="font-variation-settings:'FILL' 1;">add_circle</span>
-            Create New Task
-          </button>
-        </div>
-
-        <!-- Visual pane -->
-        <div class="relative z-10 w-full md:w-[340px] aspect-video rounded-xl overflow-hidden flex-shrink-0"
-             style="border:1px solid rgba(255,255,255,0.08); box-shadow:0 8px 40px rgba(0,0,0,0.5);">
-          <!-- Animated terminal-like placeholder -->
-          <div class="w-full h-full flex flex-col" style="background:#060e20;">
-            <div class="flex items-center gap-1.5 px-4 py-3 border-b border-slate-800/60">
-              <div class="w-2.5 h-2.5 rounded-full bg-red-500/70"></div>
-              <div class="w-2.5 h-2.5 rounded-full bg-yellow-500/70"></div>
-              <div class="w-2.5 h-2.5 rounded-full bg-green-500/70"></div>
-              <span class="ml-3 text-[10px] font-mono text-slate-500">taskops — AI Orchestrator v2.4.1</span>
-            </div>
-            <div class="flex-1 p-4 font-mono text-[11px] leading-6 space-y-1 text-left" id="terminal-lines">
-              <div class="text-green-400">$ init workspace --ai --auto-provision</div>
-              <div class="text-slate-400">▸ Scanning dependencies...</div>
-              <div class="text-slate-400">▸ Provisioning environment...</div>
-              <div class="text-secondary">▸ Linking toolchain... <span class="text-green-400">✓</span></div>
-              <div class="text-slate-400">▸ Syncing context...</div>
-              <div class="text-primary">▸ Flow state ready. <span class="text-green-400">✓</span></div>
-              <div class="text-white">$ <span class="inline-block w-2 h-3 bg-violet-400" id="cursor" style="animation:blink 1.1s step-end infinite;"></span></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ── TASK CARDS ── -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 fade-up fade-up-2">
-
-      <!-- Card 1: Calculus 1 -->
-      <div class="task-card glass-panel rounded-xl p-6 flex flex-col transition-all duration-300"
-           style="border:1px solid rgba(255,255,255,0.07);">
-        <div class="flex justify-between items-start mb-6">
-          <div class="w-12 h-12 rounded-xl flex items-center justify-center transition-colors"
-               style="background:#1a2540;">
-            <span class="material-symbols-outlined text-[28px] text-primary">terminal</span>
-          </div>
-          <div class="flex items-center gap-2 px-3 py-1 rounded-full"
-               style="background:rgba(3,181,211,0.08); border:1px solid rgba(76,215,246,0.22);">
-            <span class="w-2 h-2 rounded-full bg-secondary dot-pulse"></span>
-            <span class="text-[10px] font-bold text-secondary tracking-[0.1em] uppercase">Active</span>
-          </div>
-        </div>
-        <h4 class="text-[22px] font-semibold text-white mb-2 tracking-tight">Calculus 1</h4>
-        <p class="text-sm text-slate-400 mb-6 leading-relaxed">High-fidelity prototyping for the mobile application dashboard.</p>
-        <div class="space-y-2 mb-6">
-          <div class="flex justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-            <span>Progress</span><span class="text-primary">68%</span>
-          </div>
-          <div class="h-1.5 w-full rounded-full overflow-hidden" style="background:#1a2540;">
-            <div class="h-full relative rounded-full" style="width:68%; background:linear-gradient(90deg,#03b5d3,#7c3aed);">
-              <div class="absolute inset-0 rounded-full progress-shimmer"></div>
-            </div>
-          </div>
-        </div>
-        <div class="mb-8">
-          <p class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.12em] mb-3">Provisioned Tools</p>
-          <div class="flex flex-wrap gap-2">
-            <span class="px-2 py-1 text-slate-300 rounded text-xs" style="background:#1a2540; border:1px solid #2d3a52;">Desmos</span>
-            <span class="px-2 py-1 text-slate-300 rounded text-xs" style="background:#1a2540; border:1px solid #2d3a52;">Symbolab</span>
-            <span class="px-2 py-1 text-slate-300 rounded text-xs" style="background:#1a2540; border:1px solid #2d3a52;">Course Textbook</span>
-          </div>
-        </div>
-        <button class="btn-resume mt-auto w-full font-bold py-3 rounded-lg transition-all duration-200 text-sm text-white"
-                style="background:#1a2540; border:1px solid rgba(255,255,255,0.08);">
-          Resume Workspace
-        </button>
-      </div>
-
-      <!-- Card 2: Senior Capstone -->
-      <div class="task-card glass-panel rounded-xl p-6 flex flex-col transition-all duration-300"
-           style="border:1px solid rgba(255,255,255,0.07);">
-        <div class="flex justify-between items-start mb-6">
-          <div class="w-12 h-12 rounded-xl flex items-center justify-center transition-colors"
-               style="background:#1a2540;">
-            <span class="material-symbols-outlined text-[28px] text-primary">auto_stories</span>
-          </div>
-          <div class="flex items-center gap-2 px-3 py-1 rounded-full"
-               style="background:rgba(124,58,237,0.08); border:1px solid rgba(210,187,255,0.2);">
-            <span class="w-2 h-2 rounded-full bg-primary"></span>
-            <span class="text-[10px] font-bold text-primary tracking-[0.1em] uppercase">In Progress</span>
-          </div>
-        </div>
-        <h4 class="text-[22px] font-semibold text-white mb-2 tracking-tight">Senior Capstone Research</h4>
-        <p class="text-sm text-slate-400 mb-6 leading-relaxed">Analyzing LLM architectures for high-density UI generation patterns.</p>
-        <div class="space-y-2 mb-6">
-          <div class="flex justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-            <span>Progress</span><span class="text-primary">42%</span>
-          </div>
-          <div class="h-1.5 w-full rounded-full overflow-hidden" style="background:#1a2540;">
-            <div class="h-full relative rounded-full" style="width:42%; background:linear-gradient(90deg,#03b5d3,#7c3aed);">
-              <div class="absolute inset-0 rounded-full progress-shimmer"></div>
-            </div>
-          </div>
-        </div>
-        <div class="mb-8">
-          <p class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.12em] mb-3">Provisioned Tools</p>
-          <div class="flex flex-wrap gap-2">
-            <span class="px-2 py-1 text-slate-300 rounded text-xs" style="background:#1a2540; border:1px solid #2d3a52;">Google Docs</span>
-            <span class="px-2 py-1 text-slate-300 rounded text-xs" style="background:#1a2540; border:1px solid #2d3a52;">arXiv</span>
-            <span class="px-2 py-1 text-slate-300 rounded text-xs" style="background:#1a2540; border:1px solid #2d3a52;">Zotero</span>
-          </div>
-        </div>
-        <button class="btn-resume mt-auto w-full font-bold py-3 rounded-lg transition-all duration-200 text-sm text-white"
-                style="background:#1a2540; border:1px solid rgba(255,255,255,0.08);">
-          Resume Workspace
-        </button>
-      </div>
-
-      <!-- Card 3: Biology 101 -->
-      <div class="task-card glass-panel rounded-xl p-6 flex flex-col transition-all duration-300"
-           style="border:1px solid rgba(255,255,255,0.07);">
-        <div class="flex justify-between items-start mb-6">
-          <div class="w-12 h-12 rounded-xl flex items-center justify-center transition-colors"
-               style="background:#1a2540;">
-            <span class="material-symbols-outlined text-[28px] text-primary">code</span>
-          </div>
-          <div class="flex items-center gap-2 px-3 py-1 rounded-full"
-               style="background:rgba(3,181,211,0.08); border:1px solid rgba(76,215,246,0.22);">
-            <span class="w-2 h-2 rounded-full bg-secondary dot-pulse"></span>
-            <span class="text-[10px] font-bold text-secondary tracking-[0.1em] uppercase">Active</span>
-          </div>
-        </div>
-        <h4 class="text-[22px] font-semibold text-white mb-2 tracking-tight">Biology 101</h4>
-        <p class="text-sm text-slate-400 mb-6 leading-relaxed">Refactoring the core middleware for optimized data synchronization.</p>
-        <div class="space-y-2 mb-6">
-          <div class="flex justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-            <span>Progress</span><span class="text-primary">89%</span>
-          </div>
-          <div class="h-1.5 w-full rounded-full overflow-hidden" style="background:#1a2540;">
-            <div class="h-full relative rounded-full" style="width:89%; background:linear-gradient(90deg,#03b5d3,#7c3aed);">
-              <div class="absolute inset-0 rounded-full progress-shimmer"></div>
-            </div>
-          </div>
-        </div>
-        <div class="mb-8">
-          <p class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.12em] mb-3">Provisioned Tools</p>
-          <div class="flex flex-wrap gap-2">
-            <span class="px-2 py-1 text-slate-300 rounded text-xs" style="background:#1a2540; border:1px solid #2d3a52;">Google Scholar</span>
-            <span class="px-2 py-1 text-slate-300 rounded text-xs" style="background:#1a2540; border:1px solid #2d3a52;">Quizlet</span>
-            <span class="px-2 py-1 text-slate-300 rounded text-xs" style="background:#1a2540; border:1px solid #2d3a52;">Wikipedia</span>
-          </div>
-        </div>
-        <button class="btn-resume mt-auto w-full font-bold py-3 rounded-lg transition-all duration-200 text-sm text-white"
-                style="background:#1a2540; border:1px solid rgba(255,255,255,0.08);">
-          Resume Workspace
-        </button>
-      </div>
-    </div>
-
-    <!-- ── BOTTOM ROW: Chart + AI Recommendations ── -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 fade-up fade-up-3">
-
-      <!-- Chart panel (2/3) -->
-      <div class="lg:col-span-2 glass-panel rounded-xl p-6"
-           style="border:1px solid rgba(255,255,255,0.07);">
-        <div class="flex items-center justify-between mb-6">
-          <h4 class="text-white font-bold text-[15px]">Workspace Performance</h4>
-          <span class="text-primary text-[11px] font-bold px-2 py-1 rounded"
-                style="background:rgba(210,187,255,0.08);">Last 7 Days</span>
-        </div>
-
-        <!-- Labels -->
-        <div class="flex items-end gap-2 h-48 mb-3">
-          <div class="chart-bar flex-1 rounded-t-lg cursor-pointer transition-all duration-200"
-               style="height:40%; background:#1a2540;"></div>
-          <div class="chart-bar flex-1 rounded-t-lg cursor-pointer transition-all duration-200"
-               style="height:60%; background:#1a2540;"></div>
-          <div class="chart-bar flex-1 rounded-t-lg cursor-pointer transition-all duration-200"
-               style="height:85%; background:#1a2540;"></div>
-          <div class="chart-bar flex-1 rounded-t-lg cursor-pointer transition-all duration-200"
-               style="height:55%; background:#1a2540;"></div>
-          <div class="chart-bar flex-1 rounded-t-lg cursor-pointer transition-all duration-200"
-               style="height:70%; background:#1a2540;"></div>
-          <div class="chart-bar flex-1 rounded-t-lg cursor-pointer transition-all duration-200"
-               style="height:95%; background:#1a2540;"></div>
-          <div class="flex-1 rounded-t-lg cursor-pointer"
-               style="height:80%; background:rgba(124,58,237,0.75);"></div>
-        </div>
-        <div class="flex gap-2">
-          <div class="flex-1 text-center text-[10px] text-slate-600">Mon</div>
-          <div class="flex-1 text-center text-[10px] text-slate-600">Tue</div>
-          <div class="flex-1 text-center text-[10px] text-slate-600">Wed</div>
-          <div class="flex-1 text-center text-[10px] text-slate-600">Thu</div>
-          <div class="flex-1 text-center text-[10px] text-slate-600">Fri</div>
-          <div class="flex-1 text-center text-[10px] text-slate-600">Sat</div>
-          <div class="flex-1 text-center text-[10px] text-violet-400 font-bold">Sun</div>
-        </div>
-      </div>
-
-      <!-- AI Recommendations (1/3) -->
-      <div class="glass-panel rounded-xl p-6"
-           style="border:1px solid rgba(124,58,237,0.14); background:rgba(124,58,237,0.04);">
-        <h4 class="text-white font-bold text-[15px] mb-5">AI Recommended</h4>
-        <div class="space-y-3">
-          <div class="flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-all duration-200 hover:border-slate-700"
-               style="background:#0d1529; border:1px solid rgba(255,255,255,0.06);">
-            <span class="material-symbols-outlined text-secondary">bolt</span>
-            <div>
-              <p class="text-sm font-bold text-white">Optimize Node.js</p>
-              <p class="text-xs text-slate-500 mt-0.5">Auto-update runtime for Layer 4.</p>
-            </div>
-          </div>
-          <div class="flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-all duration-200 hover:border-slate-700"
-               style="background:#0d1529; border:1px solid rgba(255,255,255,0.06);">
-            <span class="material-symbols-outlined text-violet-400">auto_awesome</span>
-            <div>
-              <p class="text-sm font-bold text-white">Draft Report</p>
-              <p class="text-xs text-slate-500 mt-0.5">Summary ready for Design Sprint.</p>
-            </div>
-          </div>
-          <div class="flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-all duration-200 hover:border-slate-700"
-               style="background:#0d1529; border:1px solid rgba(255,255,255,0.06);">
-            <span class="material-symbols-outlined" style="color:#ffb2b7;">schedule</span>
-            <div>
-              <p class="text-sm font-bold text-white">Review Deadlines</p>
-              <p class="text-xs text-slate-500 mt-0.5">2 tasks due in 48 hours.</p>
-            </div>
-          </div>
-        </div>
-        <button class="w-full text-[11px] font-bold text-primary uppercase tracking-[0.12em] mt-5 hover:underline transition-all">
-          View All Suggestions
-        </button>
-      </div>
-    </div>
-
-  </div>
-</main>
-
-<style>
-  @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0; }
-  }
-</style>
-
-<script>
-  // Typewriter effect for terminal
-  const lines = [
-    { text: '$ init workspace --ai --auto-provision', color: '#4ade80' },
-    { text: '▸ Scanning dependencies...', color: '#94a3b8' },
-    { text: '▸ Provisioning environment...', color: '#94a3b8' },
-    { text: '▸ Linking toolchain... ✓', color: '#4cd7f6' },
-    { text: '▸ Syncing context...', color: '#94a3b8' },
-    { text: '▸ Flow state ready. ✓', color: '#d2bbff' },
-  ];
-
-  const terminal = document.getElementById('terminal-lines');
-  terminal.innerHTML = '';
-
-  let lineIdx = 0;
-  function typeLine() {
-    if (lineIdx >= lines.length) {
-      // Show cursor
-      const cur = document.createElement('div');
-      cur.innerHTML = `<span style="color:#94a3b8;">$ </span><span style="display:inline-block;width:8px;height:13px;background:#7c3aed;animation:blink 1.1s step-end infinite;vertical-align:middle;"></span>`;
-      terminal.appendChild(cur);
-      return;
+  <script>
+  (() => {
+    'use strict';
+    const STORAGE_KEY = 'taskops.workspace.v1';
+    const plans = {
+      research: {
+        tools:['Google Scholar','Zotero','Google Docs','arXiv'], icon:'R', label:'Research',
+        steps:['Define the question and expected deliverable','Collect 5–8 credible primary sources','Evaluate sources and save citations','Create an evidence-based outline','Draft each section of the deliverable','Review citations, clarity, and requirements','Export and submit the final version']
+      },
+      study: {
+        tools:['Khan Academy','Quizlet','Desmos'], icon:'S', label:'Study',
+        steps:['List the topics and learning objectives','Gather course notes and reference material','Break the material into focused study blocks','Review one concept and write a short summary','Complete targeted practice questions','Record mistakes and revisit weak areas','Run a final self-test without notes']
+      },
+      development: {
+        tools:['GitHub','Stack Overflow','Figma'], icon:'D', label:'Development',
+        steps:['Write acceptance criteria and constraints','Map the current system and dependencies','Design the smallest complete solution','Implement the primary user flow','Handle errors and boundary conditions','Exercise the feature end to end','Review, document, and package the result']
+      },
+      planning: {
+        tools:['Google Calendar','Trello','Google Docs'], icon:'P', label:'Planning',
+        steps:['Define the outcome and completion criteria','List constraints, people, and resources','Break the outcome into concrete milestones','Estimate and order the work','Schedule milestones and focus blocks','Review progress and remove blockers','Close the plan and capture follow-up actions']
+      }
+    };
+    function buildResourceKit(goal, category) {
+      const query=encodeURIComponent(goal.trim());
+      const make=(name,type,url,description)=>({id:uid(),name,type,url,description,source:'Suggested'});
+      const kits={
+        research:[
+          make('Google Scholar','Research',`https://scholar.google.com/scholar?q=${query}`,'Peer-reviewed papers and citations matched to this goal.'),
+          make('Semantic Scholar','Research',`https://www.semanticscholar.org/search?q=${query}&sort=relevance`,'Relevant academic papers with citation context.'),
+          make('Zotero','Organization','https://www.zotero.org/','Save sources, notes, and citations in one library.'),
+          make('Google Docs','Workspace','https://docs.google.com/document/','Draft and collaborate on the final document.')
+        ],
+        study:[
+          make('Khan Academy','Learning',`https://www.khanacademy.org/search?page_search_query=${query}`,'Lessons and practice related to this subject.'),
+          make('OpenStax','Reference',`https://openstax.org/search?query=${query}`,'Free, peer-reviewed textbook material.'),
+          make('Quizlet','Practice',`https://quizlet.com/search?query=${query}&type=sets`,'Flashcards and study sets for active recall.'),
+          make('YouTube lessons','Video',`https://www.youtube.com/results?search_query=${query}%20lesson`,'Explanations and worked examples from educators.')
+        ],
+        development:[
+          make('MDN Web Docs','Documentation',`https://developer.mozilla.org/en-US/search?q=${query}`,'Authoritative browser and web platform documentation.'),
+          make('GitHub','Examples',`https://github.com/search?q=${query}&type=repositories`,'Existing projects, implementation patterns, and source code.'),
+          make('Stack Overflow','Troubleshooting',`https://stackoverflow.com/search?q=${query}`,'Technical questions and verified solutions.'),
+          make('Figma','Design','https://www.figma.com/files/','Design, prototype, and review the interface.')
+        ],
+        planning:[
+          make('Google Calendar','Scheduling','https://calendar.google.com/','Schedule milestones, deadlines, and focus blocks.'),
+          make('Trello','Tracking','https://trello.com/','Track milestones and move work through clear stages.'),
+          make('Google Docs','Workspace','https://docs.google.com/document/','Keep notes, decisions, and deliverables together.'),
+          make('Notion','Organization','https://www.notion.so/','Centralize project notes, references, and status.')
+        ]
+      };
+      return kits[category]||kits.planning;
     }
-    const l = lines[lineIdx];
-    const div = document.createElement('div');
-    div.style.color = l.color;
-    div.style.opacity = '0';
-    div.style.transition = 'opacity 0.3s';
-    div.textContent = l.text;
-    terminal.appendChild(div);
-    requestAnimationFrame(() => { div.style.opacity = '1'; });
-    lineIdx++;
-    setTimeout(typeLine, 400 + Math.random() * 200);
-  }
-  setTimeout(typeLine, 600);
+    function hydrateTask(task) {
+      const category=task.category||detectCategory(`${task.title||''} ${task.description||''}`);
+      const validResources=Array.isArray(task.resources)
+        ? task.resources.filter(resource=>resource&&resource.name&&resource.url)
+        : null;
+      return {
+        ...task,
+        category,
+        tools:Array.isArray(task.tools)?task.tools:[...(plans[category]?.tools||[])],
+        resources:validResources||buildResourceKit(task.description||task.title||'New task',category)
+      };
+    }
+    const seed = [
+      {id:'seed-1',title:'Calculus 1 Review',description:'Prepare for the midterm with focused practice and concept review.',category:'study',priority:'high',due:'',created:Date.now()-172800000,tools:['Desmos','Khan Academy','Quizlet'],steps:['List exam topics and formulas','Review limits and derivatives','Complete 15 derivative problems','Practice applications and word problems','Take a timed practice test'].map((text,i)=>({id:'c'+i,text,done:i<3}))},
+      {id:'seed-2',title:'Senior Capstone Research',description:'Research AI-assisted workflow systems and prepare a structured literature review.',category:'research',priority:'medium',due:'',created:Date.now()-86400000,tools:['Google Scholar','arXiv','Zotero'],steps:['Define research questions','Collect primary sources','Annotate and group evidence','Build literature review outline','Draft related work section','Review citations and claims'].map((text,i)=>({id:'r'+i,text,done:i<2}))},
+      {id:'seed-3',title:'TaskOps Browser Extension',description:'Build and validate an overlay for managing workflows without leaving the page.',category:'development',priority:'medium',due:'',created:Date.now(),tools:['GitHub','Stack Overflow','Figma'],steps:['Define extension permissions','Build page overlay','Persist tasks locally','Test on multiple websites','Package the extension'].map((text,i)=>({id:'d'+i,text,done:i<4}))}
+    ];
+    const defaultState = {tasks:seed,view:'dashboard',query:'',filter:'all',profile:{name:'TaskOps User'}};
+    let state = loadState();
+    const app = document.getElementById('app');
+    const sidebar = document.getElementById('sidebar');
+    const search = document.getElementById('globalSearch');
 
-  // Chart bar tooltips
-  document.querySelectorAll('.chart-bar').forEach((bar, i) => {
-    const days = ['Mon','Tue','Wed','Thu','Fri','Sat'];
-    const vals = [40, 60, 85, 55, 70, 95];
-    bar.title = `${days[i]}: ${vals[i]} tasks`;
-  });
-</script>
+    function loadState() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (saved && Array.isArray(saved.tasks)) return {...defaultState,...saved,tasks:saved.tasks.map(hydrateTask),query:'',view:'dashboard'};
+      } catch (_) {}
+      const initial=typeof structuredClone === 'function' ? structuredClone(defaultState) : JSON.parse(JSON.stringify(defaultState));
+      initial.tasks=initial.tasks.map(hydrateTask);
+      return initial;
+    }
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY,JSON.stringify({tasks:state.tasks,profile:state.profile}));
+    }
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+    }
+    function uid() { return (crypto.randomUUID ? crypto.randomUUID() : Date.now()+'-'+Math.random()).toString(); }
+    function progress(task) { return task.steps.length ? Math.round(task.steps.filter(s=>s.done).length/task.steps.length*100) : 0; }
+    function status(task) { const p=progress(task); return p===100?'completed':p>0?'active':'planned'; }
+    function fmtDate(date) { if(!date) return 'No due date'; const parsed=new Date(date+'T12:00:00'); return parsed.toLocaleDateString(undefined,{month:'short',day:'numeric'}); }
+    function titleFromGoal(goal) {
+      const clean=goal.trim().replace(/^(i need to|help me|please|i want to)\s+/i,'').replace(/[.!?]+$/,'');
+      const words=clean.split(/\s+/).slice(0,7).join(' ');
+      return words.charAt(0).toUpperCase()+words.slice(1);
+    }
+    function detectCategory(goal) {
+      const text=goal.toLowerCase();
+      if(/code|app|website|software|debug|program|api|extension|develop|build/.test(text)) return 'development';
+      if(/research|paper|report|essay|sources|citation|literature|write/.test(text)) return 'research';
+      if(/study|exam|quiz|learn|class|course|homework|math/.test(text)) return 'study';
+      return 'planning';
+    }
+    function relevantTasks() {
+      const q=state.query.trim().toLowerCase();
+      return state.tasks.filter(task => {
+        const matchesFilter=state.filter==='all'||status(task)===state.filter;
+        const resourceText=(task.resources||[]).flatMap(resource=>[resource.name,resource.type,resource.description]).join(' ');
+        const haystack=[task.title,task.description,...task.tools,...task.steps.map(s=>s.text),resourceText].join(' ').toLowerCase();
+        return matchesFilter && (!q||haystack.includes(q));
+      });
+    }
+    function toast(message) {
+      const el=document.createElement('div'); el.className='toast'; el.textContent=message;
+      document.getElementById('toastRegion').append(el); setTimeout(()=>el.remove(),2800);
+    }
+    function setView(view) {
+      state.view=view; state.query=''; search.value='';
+      document.querySelectorAll('.nav-button').forEach(btn=>btn.classList.toggle('active',btn.dataset.view===view));
+      const titles={dashboard:'Overview',tasks:'Tasks',resources:'Resources',analytics:'Analytics',settings:'Settings'};
+      document.getElementById('topTitle').textContent=titles[view]; sidebar.classList.remove('open'); render();
+    }
+    function taskCard(task) {
+      const p=progress(task), s=status(task);
+      const statusLabel=s==='active'?'In progress':s==='planned'?'Not started':'Completed';
+      return `<article class="task-card" data-task-id="${escapeHtml(task.id)}">
+        <div class="card-top"><span class="card-kicker">${escapeHtml(plans[task.category]?.label||task.category)}</span><span class="status ${s}">${statusLabel}</span></div>
+        <h4>${escapeHtml(task.title)}</h4><p class="description">${escapeHtml(task.description)}</p>
+        <div class="progress-meta"><span>${task.steps.filter(step=>step.done).length} of ${task.steps.length} steps</span><span>${p}%</span></div><div class="progress"><span style="width:${p}%"></span></div>
+        <div class="chips">${task.resources.slice(0,3).map(resource=>`<span class="chip">${escapeHtml(resource.name)}</span>`).join('')}<span class="chip">${task.resources.length} resources</span></div>
+        <div class="card-actions"><span class="card-due">${escapeHtml(fmtDate(task.due))}</span><button class="btn small" data-open="${escapeHtml(task.id)}">${s==='completed'?'Review':'Open'}</button><button class="btn small ghost" data-delete="${escapeHtml(task.id)}" aria-label="Delete ${escapeHtml(task.title)}">×</button></div>
+      </article>`;
+    }
+    function dashboardView() {
+      const tasks=relevantTasks();
+      const complete=state.tasks.filter(t=>status(t)==='completed').length;
+      const active=state.tasks.filter(t=>status(t)==='active').length;
+      const stepsDone=state.tasks.reduce((n,t)=>n+t.steps.filter(s=>s.done).length,0);
+      const average=state.tasks.length?Math.round(state.tasks.reduce((n,t)=>n+progress(t),0)/state.tasks.length):0;
+      const today=new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
+      app.innerHTML=`<section class="view">
+        <div class="dashboard-head"><div><h1>Today</h1><p>${today} · ${active} task${active===1?'':'s'} in progress</p></div><button class="btn primary" data-create>New task</button></div>
+        <button class="composer" data-create><span class="composer-plus">+</span><span class="composer-copy"><b>Start with a goal</b><span>Describe the outcome. TaskOps will organize the next steps.</span></span><span class="composer-action">Create workflow →</span></button>
+        <div class="summary-strip"><div class="summary-item"><strong>${state.tasks.length}</strong><span>Total tasks</span></div><div class="summary-item"><strong>${active}</strong><span>In progress</span></div><div class="summary-item"><strong>${complete}</strong><span>Completed</span></div><div class="summary-item"><strong>${average}%</strong><span>Overall progress</span></div></div>
+        <div class="section-head"><div><h3>${state.query?'Search results':'Current work'}</h3><p>${state.query?`Matching “${escapeHtml(state.query)}”`:'Pick up where you left off.'}</p></div><button class="btn small ghost" data-view-jump="tasks">View all</button></div>
+        <div class="task-grid">${tasks.length?tasks.slice(0,6).map(taskCard).join(''):'<div class="empty">No matching tasks. Try another search or create a new task.</div>'}</div>
+        <div class="panel-grid"><section class="panel"><h4>At a glance</h4><div class="overview-list"><div class="overview-stat"><strong>${stepsDone}</strong><span>Steps finished</span></div><div class="overview-stat"><strong>${average}%</strong><span>Average progress</span></div><div class="overview-stat"><strong>${complete}</strong><span>Tasks completed</span></div></div></section>
+        <aside class="panel"><h4>Up next</h4>${recommendations().map(r=>`<div class="suggestion"><span>${r.icon}</span><div><b>${escapeHtml(r.title)}</b><small>${escapeHtml(r.note)}</small></div></div>`).join('')}</aside></div>
+      </section>`;
+    }
+    function recommendations() {
+      const overdue=state.tasks.filter(t=>t.due&&new Date(t.due+'T23:59:59')<new Date()&&status(t)!=='completed').length;
+      const nearly=state.tasks.find(t=>progress(t)>=70&&progress(t)<100);
+      const untouched=state.tasks.find(t=>progress(t)===0);
+      const out=[];
+      if(overdue) out.push({icon:'!',title:`Review ${overdue} overdue task${overdue>1?'s':''}`,note:'Update deadlines or complete the next step.'});
+      if(nearly) out.push({icon:'↗',title:`Finish ${nearly.title}`,note:`Only ${100-progress(nearly)}% remains.`});
+      if(untouched) out.push({icon:'→',title:`Start ${untouched.title}`,note:'Complete the first planned action.'});
+      if(!out.length) out.push({icon:'✓',title:'Workspace is on track',note:'Create another goal when you are ready.'});
+      return out.slice(0,3);
+    }
+    function tasksView() {
+      const tasks=relevantTasks();
+      app.innerHTML=`<section class="view"><h1 class="page-title">Tasks</h1><p class="page-subtitle">Review steps, deadlines, and progress across your workspace.</p>
+        <div class="toolbar"><select class="select" id="statusFilter" aria-label="Filter tasks"><option value="all">All statuses</option><option value="active">In progress</option><option value="planned">Not started</option><option value="completed">Completed</option></select><button class="btn primary" data-create>New task</button></div>
+        <div class="list">${tasks.length?tasks.map(t=>`<article class="task-row"><div class="task-icon">${plans[t.category]?.icon||'T'}</div><div><h4>${escapeHtml(t.title)}</h4><p>${escapeHtml(t.description)}</p></div><div class="row-progress"><div class="progress-meta"><span>Progress</span><span>${progress(t)}%</span></div><div class="progress" style="margin-bottom:0"><span style="width:${progress(t)}%"></span></div></div><span class="priority ${t.priority}">${escapeHtml(t.priority)} priority</span><button class="btn small" data-open="${escapeHtml(t.id)}">Open</button></article>`).join(''):'<div class="empty">No tasks match this filter.</div>'}</div></section>`;
+      const filter=document.getElementById('statusFilter'); filter.value=state.filter; filter.addEventListener('change',()=>{state.filter=filter.value;render();});
+    }
+    function resourcesView() {
+      const q=state.query.trim().toLowerCase();
+      const list=state.tasks.flatMap(task=>(task.resources||[]).map(resource=>({...resource,taskId:task.id,taskTitle:task.title})))
+        .filter(resource=>!q||[resource.name,resource.type,resource.description,resource.taskTitle].join(' ').toLowerCase().includes(q));
+      app.innerHTML=`<section class="view"><div class="dashboard-head"><div><h1 class="page-title">Resource hub</h1><p class="page-subtitle">Every reference, tool, and workspace collected for your tasks.</p></div><span class="resource-total">${list.length} resource${list.length===1?'':'s'}</span></div>
+        <div class="resource-grid">${list.length?list.map(resource=>`<article class="resource"><div class="resource-top"><h4>${escapeHtml(resource.name)}</h4><span class="resource-type">${escapeHtml(resource.type||'Resource')}</span></div><p>${escapeHtml(resource.description||'Saved resource')}</p><div class="resource-origin">For ${escapeHtml(resource.taskTitle)}</div><div class="resource-actions"><a href="${escapeHtml(resource.url)}" target="_blank" rel="noopener noreferrer">Open ↗</a><button class="btn small ghost" data-open="${escapeHtml(resource.taskId)}">View task</button></div></article>`).join(''):'<div class="empty">No resources match this search.</div>'}</div></section>`;
+    }
+    function analyticsView() {
+      const totalSteps=state.tasks.reduce((n,t)=>n+t.steps.length,0), doneSteps=state.tasks.reduce((n,t)=>n+t.steps.filter(s=>s.done).length,0);
+      const completion=totalSteps?Math.round(doneSteps/totalSteps*100):0;
+      const categories=Object.keys(plans).map(cat=>({cat,count:state.tasks.filter(t=>t.category===cat).length})).sort((a,b)=>b.count-a.count);
+      app.innerHTML=`<section class="view"><h1 class="page-title">Analytics</h1><p class="page-subtitle">Progress across tasks saved in this browser.</p><div class="analytics-grid"><div class="metric"><span>Tasks</span><strong>${state.tasks.length}</strong></div><div class="metric"><span>Steps completed</span><strong>${doneSteps}</strong></div><div class="metric"><span>Step completion</span><strong>${completion}%</strong></div><div class="metric"><span>Finished tasks</span><strong>${state.tasks.filter(t=>status(t)==='completed').length}</strong></div></div>
+        <div class="panel-grid"><section class="panel"><h4>Progress by task</h4>${state.tasks.length?state.tasks.map(t=>`<div style="margin:13px 0"><div class="progress-meta"><span>${escapeHtml(t.title)}</span><span>${progress(t)}%</span></div><div class="progress"><span style="width:${progress(t)}%"></span></div></div>`).join(''):'<div class="empty">No task data yet.</div>'}</section><section class="panel"><h4>Workflow mix</h4>${categories.map(c=>`<div class="suggestion"><span>${plans[c.cat].icon}</span><div><b>${c.cat[0].toUpperCase()+c.cat.slice(1)}</b><small>${c.count} workflow${c.count===1?'':'s'}</small></div></div>`).join('')}</section></div></section>`;
+    }
+    function settingsView() {
+      app.innerHTML=`<section class="view"><h1 class="page-title">Settings</h1><p class="page-subtitle">Manage your local workspace and data.</p><div class="settings-grid">
+        <section class="setting"><h4>Profile</h4><p>Your initials appear in the application header.</p><div class="form-group"><label for="profileName">Display name</label><input class="field" id="profileName" value="${escapeHtml(state.profile.name)}" maxlength="50"></div><button class="btn primary" id="saveProfile" style="margin-top:12px">Save profile</button></section>
+        <section class="setting"><h4>Export workspace</h4><p>Download all tasks, steps, progress, and preferences as JSON.</p><button class="btn" id="exportData">Download backup</button></section>
+        <section class="setting"><h4>Import workspace</h4><p>Restore a TaskOps JSON backup. Imported data replaces the current workspace.</p><input class="field" id="importData" type="file" accept="application/json"></section>
+        <section class="setting"><h4>Delete local data</h4><p>Remove all saved tasks from this browser. This action cannot be undone.</p><button class="btn danger" id="clearData">Delete all data</button></section>
+      </div></section>`;
+      document.getElementById('saveProfile').onclick=()=>{ const value=document.getElementById('profileName').value.trim(); if(value){state.profile.name=value;saveState();setAvatar();toast('Profile saved.');} };
+      document.getElementById('exportData').onclick=exportData;
+      document.getElementById('importData').onchange=importData;
+      document.getElementById('clearData').onclick=()=>{ if(confirm('Delete every saved TaskOps workflow from this browser?')){state.tasks=[];saveState();render();toast('Local workspace cleared.');} };
+    }
+    function render() {
+      ({dashboard:dashboardView,tasks:tasksView,resources:resourcesView,analytics:analyticsView,settings:settingsView}[state.view]||dashboardView)();
+    }
+    function openCreate() {
+      const fragment=document.getElementById('createTemplate').content.cloneNode(true); document.body.append(fragment);
+      const backdrop=document.querySelector('[data-backdrop]'); const form=document.getElementById('createForm');
+      const close=()=>backdrop.remove(); backdrop.querySelectorAll('[data-close]').forEach(b=>b.onclick=close);
+      backdrop.addEventListener('click',e=>{if(e.target===backdrop)close();});
+      form.addEventListener('submit',e=>{e.preventDefault(); const data=new FormData(form), goal=String(data.get('goal')).trim(); if(!goal)return;
+        const category=data.get('category')==='auto'?detectCategory(goal):data.get('category'); const plan=plans[category];
+        const task={id:uid(),title:String(data.get('title')).trim()||titleFromGoal(goal),description:goal,category,priority:data.get('priority'),due:data.get('due'),created:Date.now(),tools:[...plan.tools],resources:buildResourceKit(goal,category),steps:plan.steps.map(text=>({id:uid(),text,done:false}))};
+        state.tasks.unshift(task); saveState(); close(); render(); toast('Workflow created.'); openWorkspace(task.id);
+      });
+      setTimeout(()=>document.getElementById('goal').focus(),0);
+    }
+    function openWorkspace(id) {
+      const task=state.tasks.find(t=>t.id===id); if(!task)return;
+      const backdrop=document.createElement('div'); backdrop.className='modal-backdrop'; backdrop.dataset.backdrop='';
+      backdrop.innerHTML=`<section class="modal wide" role="dialog" aria-modal="true" aria-label="${escapeHtml(task.title)} workspace"><header class="modal-head"><h3>Task workspace</h3><button class="icon-btn" data-close aria-label="Close">×</button></header><div class="modal-body">
+        <div class="workspace-summary"><div><input class="field" id="workspaceTitle" value="${escapeHtml(task.title)}" maxlength="80" aria-label="Task title"><p>${escapeHtml(task.description)}</p></div><span class="status ${status(task)}" id="workspaceStatus">${status(task)}</span></div>
+        <div class="progress-meta"><span>Workflow progress</span><span id="workspacePercent">${progress(task)}%</span></div><div class="progress"><span id="workspaceBar" style="width:${progress(task)}%"></span></div>
+        <div class="toolbar"><span class="priority ${task.priority}">${task.priority} priority</span><span class="muted">Due: ${fmtDate(task.due)}</span></div>
+        <h4>Action plan</h4><div class="steps" id="stepList"></div><form class="add-step" id="addStep"><input class="field" name="step" maxlength="140" placeholder="Add another step" required><button class="btn" type="submit">Add</button></form>
+        <div class="workspace-section-head"><div><h4>Resource hub</h4><p>References, tools, and workspaces collected for this task.</p></div><div class="workspace-section-actions"><button class="btn small ghost" id="refreshResources">Refresh</button><button class="btn small" id="openResources">Open all</button></div></div>
+        <div class="workspace-resource-grid" id="workspaceResources"></div>
+        <form class="resource-form" id="addResource"><input class="field" name="name" maxlength="80" placeholder="Resource name" required><input class="field" name="url" type="url" placeholder="https://…" required><button class="btn" type="submit">Add resource</button></form>
+        <div class="modal-actions"><button class="btn danger" data-delete-task>Delete task</button><button class="btn primary" data-close>Done</button></div></div></section>`;
+      document.body.append(backdrop);
+      const list=backdrop.querySelector('#stepList');
+      const resourceList=backdrop.querySelector('#workspaceResources');
+      const updateProgress=()=>{const p=progress(task),s=status(task);backdrop.querySelector('#workspacePercent').textContent=p+'%';backdrop.querySelector('#workspaceBar').style.width=p+'%';const badge=backdrop.querySelector('#workspaceStatus');badge.textContent=s==='active'?'In progress':s==='planned'?'Not started':'Completed';badge.className='status '+s;};
+      const renderSteps=()=>{list.innerHTML='';task.steps.forEach(step=>{const row=document.createElement('div');row.className='step'+(step.done?' done':'');row.innerHTML=`<input type="checkbox" ${step.done?'checked':''} aria-label="Mark step complete"><input type="text" maxlength="140" aria-label="Step description"><button class="icon-btn" aria-label="Remove step">×</button>`; const text=row.querySelector('input[type=text]');text.value=step.text;row.querySelector('input[type=checkbox]').onchange=e=>{step.done=e.target.checked;saveState();renderSteps();updateProgress();};text.onchange=()=>{if(text.value.trim()){step.text=text.value.trim();saveState();}else{text.value=step.text;}};row.querySelector('button').onclick=()=>{task.steps=task.steps.filter(s=>s.id!==step.id);saveState();renderSteps();updateProgress();};list.append(row);});};
+      const renderResources=()=>{resourceList.innerHTML='';task.resources.forEach(resource=>{const card=document.createElement('article');card.className='workspace-resource';card.innerHTML=`<div><h5>${escapeHtml(resource.name)}</h5><p>${escapeHtml(resource.description||'Saved resource')}</p><div class="workspace-resource-meta">${escapeHtml(resource.type||'Resource')} · ${resource.source==='User'?'Added by you':'Suggested for this task'}</div></div><div class="workspace-resource-actions"><a href="${escapeHtml(resource.url)}" target="_blank" rel="noopener noreferrer">Open ↗</a><button class="icon-btn" aria-label="Remove ${escapeHtml(resource.name)}">×</button></div>`;card.querySelector('button').onclick=()=>{task.resources=task.resources.filter(item=>item.id!==resource.id);saveState();renderResources();};resourceList.append(card);});if(!task.resources.length){resourceList.innerHTML='<div class="empty">No resources saved for this task.</div>';}};
+      renderSteps(); renderResources(); updateProgress();
+      backdrop.querySelector('#workspaceTitle').onchange=e=>{if(e.target.value.trim()){task.title=e.target.value.trim();saveState();}else e.target.value=task.title;};
+      backdrop.querySelector('#addStep').onsubmit=e=>{e.preventDefault();const input=e.target.elements.step;task.steps.push({id:uid(),text:input.value.trim(),done:false});input.value='';saveState();renderSteps();updateProgress();};
+      backdrop.querySelector('#addResource').onsubmit=e=>{e.preventDefault();const name=e.target.elements.name.value.trim();const rawUrl=e.target.elements.url.value.trim();try{const url=new URL(rawUrl);if(!['http:','https:'].includes(url.protocol))throw new Error();task.resources.push({id:uid(),name,type:'Custom',url:url.href,description:'Added to this task workspace.',source:'User'});saveState();e.target.reset();renderResources();toast('Resource added.');}catch(_){alert('Enter a valid http or https URL.');}};
+      backdrop.querySelector('#refreshResources').onclick=()=>{const custom=task.resources.filter(resource=>resource.source==='User');task.resources=[...custom,...buildResourceKit(task.description,task.category)];saveState();renderResources();toast('Resource suggestions refreshed.');};
+      backdrop.querySelector('#openResources').onclick=()=>{task.resources.forEach(resource=>window.open(resource.url,'_blank','noopener,noreferrer'));};
+      const close=()=>{backdrop.remove();render();};backdrop.querySelectorAll('[data-close]').forEach(b=>b.onclick=close);backdrop.addEventListener('click',e=>{if(e.target===backdrop)close();});
+      backdrop.querySelector('[data-delete-task]').onclick=()=>{if(confirm(`Delete “${task.title}”?`)){state.tasks=state.tasks.filter(t=>t.id!==task.id);saveState();close();toast('Task deleted.');}};
+    }
+    function deleteTask(id) { const task=state.tasks.find(t=>t.id===id); if(task&&confirm(`Delete “${task.title}”?`)){state.tasks=state.tasks.filter(t=>t.id!==id);saveState();render();toast('Task deleted.');} }
+    function exportData() { const blob=new Blob([JSON.stringify({version:1,exportedAt:new Date().toISOString(),tasks:state.tasks,profile:state.profile},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='taskops-backup.json';a.click();URL.revokeObjectURL(a.href);toast('Workspace backup downloaded.'); }
+    function importData(event) { const file=event.target.files[0]; if(!file)return; const reader=new FileReader();reader.onload=()=>{try{const data=JSON.parse(reader.result);if(!Array.isArray(data.tasks))throw new Error();state.tasks=data.tasks.map(hydrateTask);state.profile=data.profile||defaultState.profile;saveState();setAvatar();render();toast('Workspace restored.');}catch(_){alert('That file is not a valid TaskOps backup.');}};reader.readAsText(file); }
+    function setAvatar() { document.getElementById('avatar').textContent=state.profile.name.split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase()||'TO'; }
+
+    document.addEventListener('click',e=>{const create=e.target.closest('[data-create]');if(create){openCreate();return;}const open=e.target.closest('[data-open]');if(open){openWorkspace(open.dataset.open);return;}const del=e.target.closest('[data-delete]');if(del){deleteTask(del.dataset.delete);return;}const jump=e.target.closest('[data-view-jump]');if(jump)setView(jump.dataset.viewJump);});
+    document.querySelectorAll('.nav-button').forEach(btn=>btn.addEventListener('click',()=>setView(btn.dataset.view)));
+    document.getElementById('menuButton').onclick=()=>sidebar.classList.toggle('open');
+    search.addEventListener('input',()=>{state.query=search.value;if(state.view==='settings'||state.view==='analytics')setView('tasks');else render();});
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'){document.querySelector('.modal-backdrop')?.remove();sidebar.classList.remove('open');}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();search.focus();}});
+    saveState(); setAvatar(); render();
+  })();
+  </script>
 </body>
 </html>
