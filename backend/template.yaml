@@ -1,0 +1,140 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: TaskOps workflow generation API backed by Amazon Bedrock Converse.
+
+Parameters:
+  AllowedOrigin:
+    Type: String
+    Default: '*'
+    Description: CORS origin allowed to call the API. Use a concrete HTTPS origin when the dashboard is hosted.
+  ModelId:
+    Type: String
+    Default: us.amazon.nova-2-lite-v1:0
+  MaxOutputTokens:
+    Type: Number
+    Default: 1200
+    MinValue: 256
+    MaxValue: 1600
+  DailyQuota:
+    Type: Number
+    Default: 100
+    MinValue: 1
+    MaxValue: 10000
+
+Resources:
+  TaskOpsApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub '${AWS::StackName}-api'
+      StageName: prod
+      EndpointConfiguration: REGIONAL
+      Cors:
+        AllowMethods: "'POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Api-Key'"
+        AllowOrigin: !Sub "'${AllowedOrigin}'"
+        MaxAge: "'600'"
+      Auth:
+        UsagePlan:
+          CreateUsagePlan: PER_API
+          Description: Per-client quota and throttle for TaskOps workflow generation.
+          Quota:
+            Limit: !Ref DailyQuota
+            Period: DAY
+          Throttle:
+            BurstLimit: 2
+            RateLimit: 1
+          UsagePlanName: !Sub '${AWS::StackName}-usage'
+      GatewayResponses:
+        DEFAULT_4XX:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"
+              Access-Control-Allow-Headers: "'Content-Type,X-Api-Key'"
+        DEFAULT_5XX:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"
+              Access-Control-Allow-Headers: "'Content-Type,X-Api-Key'"
+      Models:
+        WorkflowRequest:
+          type: object
+          additionalProperties: false
+          required:
+            - goal
+          properties:
+            goal:
+              type: string
+              minLength: 3
+              maxLength: 600
+            category:
+              type: string
+              enum:
+                - auto
+                - research
+                - study
+                - development
+                - planning
+
+  WorkflowFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-workflow'
+      Description: Generates validated TaskOps workflows with Amazon Nova 2 Lite.
+      CodeUri: src/
+      Handler: index.handler
+      Runtime: nodejs22.x
+      Architectures:
+        - arm64
+      MemorySize: 256
+      Timeout: 30
+      ReservedConcurrentExecutions: 2
+      Environment:
+        Variables:
+          ALLOWED_ORIGIN: !Ref AllowedOrigin
+          MAX_OUTPUT_TOKENS: !Ref MaxOutputTokens
+          MODEL_ID: !Ref ModelId
+      Policies:
+        - Statement:
+            - Sid: InvokeTaskOpsModel
+              Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource:
+                - !Sub 'arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/${ModelId}'
+                - !Sub 'arn:${AWS::Partition}:bedrock:*::foundation-model/amazon.nova-2-lite-v1:0'
+      Events:
+        GenerateWorkflow:
+          Type: Api
+          Properties:
+            RestApiId: !Ref TaskOpsApi
+            Path: /workflow
+            Method: post
+            Auth:
+              ApiKeyRequired: true
+            RequestModel:
+              Model: WorkflowRequest
+              Required: true
+              ValidateBody: true
+              ValidateParameters: false
+
+  WorkflowLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${AWS::StackName}-workflow'
+      RetentionInDays: 14
+
+Outputs:
+  ApiEndpoint:
+    Description: TaskOps workflow generation endpoint.
+    Value: !Sub 'https://${TaskOpsApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/prod/workflow'
+  ApiKeyId:
+    Description: Retrieve the value with aws apigateway get-api-key --include-value.
+    Value: !Ref TaskOpsApiApiKey
+  ApiId:
+    Value: !Ref TaskOpsApi
+  LambdaFunctionName:
+    Value: !Ref WorkflowFunction
+  ModelId:
+    Value: !Ref ModelId

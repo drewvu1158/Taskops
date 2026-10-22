@@ -50,6 +50,7 @@
     .btn:hover { border-color:#424d5c; background:#202731; }
     .btn.primary { color:#111722; background:#aabaff; border-color:#aabaff; }
     .btn.primary:hover { background:#bdc9ff; border-color:#bdc9ff; }
+    .btn:disabled { cursor:wait; opacity:.66; }
     .btn.ghost { background:transparent; }
     .btn.danger { color:#f1a6b2; border-color:#56313a; background:#25171b; }
     .btn.small { padding:6px 9px; font-size:11px; }
@@ -178,6 +179,7 @@
     .toast-region { position:fixed; right:20px; bottom:20px; z-index:150; display:grid; gap:8px; }
     .toast { width:min(340px,calc(100vw - 40px)); padding:11px 13px; border:1px solid #364355; border-radius:8px; color:#e6eaf0; background:#1b222c; box-shadow:var(--shadow); animation:toastIn .18s ease; }
     @keyframes toastIn { from{opacity:0;transform:translateY(6px)} }
+    .form-error { min-height:18px; margin:12px 0 -7px; color:var(--red); font-size:11px; text-align:right; }
     .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
     @media (max-width:1050px) { .task-grid,.resource-grid{grid-template-columns:repeat(2,1fr)} .analytics-grid{grid-template-columns:repeat(2,1fr)} }
     @media (max-width:760px) {
@@ -236,12 +238,14 @@
             <div class="form-group"><label for="dueDate">Due date</label><input class="field" id="dueDate" name="due" type="date"></div>
             <div class="form-group"><label for="category">Workflow type</label><select class="select" id="category" name="category"><option value="auto">Detect automatically</option><option value="research">Research & writing</option><option value="study">Study & learning</option><option value="development">Software project</option><option value="planning">Planning & organization</option></select></div>
           </div>
-          <div class="modal-actions"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn primary" type="submit">Create workflow</button></div>
+          <p class="form-error" id="createError" role="alert" aria-live="polite"></p>
+          <div class="modal-actions"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn primary" id="createSubmit" type="submit">Create workflow</button></div>
         </form>
       </section>
     </div>
   </template>
 
+  <script src="taskops-config.js"></script>
   <script>
   (() => {
     'use strict';
@@ -264,26 +268,54 @@
         steps:['Define the outcome and completion criteria','List constraints, people, and resources','Break the outcome into concrete milestones','Estimate and order the work','Schedule milestones and focus blocks','Review progress and remove blockers','Close the plan and capture follow-up actions']
       }
     };
+    async function generateWorkflow(goal, category, signal) {
+      const config=window.TASKOPS_CONFIG||{};
+      if(!config.apiUrl||!config.apiKey) throw new Error('TaskOps AI is not configured. Deploy the backend and reload this page.');
+      let response;
+      try {
+        response=await fetch(config.apiUrl,{
+          method:'POST',
+          headers:{'Content-Type':'application/json','X-Api-Key':config.apiKey},
+          body:JSON.stringify({goal,category}),
+          signal
+        });
+      } catch (error) {
+        if(error.name==='AbortError') throw error;
+        throw new Error('TaskOps could not reach the AI service. Check your connection and try again.');
+      }
+      const body=await response.json().catch(()=>({}));
+      if(!response.ok) {
+        const message=body?.error?.message;
+        if(response.status===403) throw new Error('TaskOps AI access was denied. Refresh the local API configuration.');
+        if(response.status===429) throw new Error('TaskOps AI is busy or the daily limit was reached. Try again later.');
+        throw new Error(message||'TaskOps could not generate this workflow. Try again.');
+      }
+      const workflow=body.workflow;
+      if(!workflow||typeof workflow.title!=='string'||!plans[workflow.category]||!Array.isArray(workflow.steps)||workflow.steps.length<1||!Array.isArray(workflow.tools)) {
+        throw new Error('TaskOps received an invalid workflow. Try again.');
+      }
+      return workflow;
+    }
     function buildResourceKit(goal, category) {
       const query=encodeURIComponent(goal.trim());
       const make=(name,type,url,description)=>({id:uid(),name,type,url,description,source:'Suggested'});
       const kits={
         research:[
-          make('Google Scholar','Research',`https://scholar.google.com/scholar?q=${query}`,'Peer-reviewed papers and citations matched to this goal.'),
-          make('Semantic Scholar','Research',`https://www.semanticscholar.org/search?q=${query}&sort=relevance`,'Relevant academic papers with citation context.'),
+          make('Google Scholar search','Research',`https://scholar.google.com/scholar?q=${query}`,'Search Google Scholar for papers and citations about this goal.'),
+          make('Semantic Scholar search','Research',`https://www.semanticscholar.org/search?q=${query}&sort=relevance`,'Search Semantic Scholar for relevant papers and citation context.'),
           make('Zotero','Organization','https://www.zotero.org/','Save sources, notes, and citations in one library.'),
           make('Google Docs','Workspace','https://docs.google.com/document/','Draft and collaborate on the final document.')
         ],
         study:[
-          make('Khan Academy','Learning',`https://www.khanacademy.org/search?page_search_query=${query}`,'Lessons and practice related to this subject.'),
+          make('Khan Academy search','Learning',`https://www.khanacademy.org/search?page_search_query=${query}`,'Search Khan Academy for lessons and practice on this subject.'),
           make('OpenStax','Reference',`https://openstax.org/search?query=${query}`,'Free, peer-reviewed textbook material.'),
           make('Quizlet','Practice',`https://quizlet.com/search?query=${query}&type=sets`,'Flashcards and study sets for active recall.'),
-          make('YouTube lessons','Video',`https://www.youtube.com/results?search_query=${query}%20lesson`,'Explanations and worked examples from educators.')
+          make('YouTube lesson search','Video',`https://www.youtube.com/results?search_query=${query}%20lesson`,'Search YouTube for lessons and worked examples on this subject.')
         ],
         development:[
-          make('MDN Web Docs','Documentation',`https://developer.mozilla.org/en-US/search?q=${query}`,'Authoritative browser and web platform documentation.'),
-          make('GitHub','Examples',`https://github.com/search?q=${query}&type=repositories`,'Existing projects, implementation patterns, and source code.'),
-          make('Stack Overflow','Troubleshooting',`https://stackoverflow.com/search?q=${query}`,'Technical questions and verified solutions.'),
+          make('MDN search','Documentation',`https://developer.mozilla.org/en-US/search?q=${query}`,'Search MDN for browser and web platform documentation.'),
+          make('GitHub repository search','Examples',`https://github.com/search?q=${query}&type=repositories`,'Search public GitHub repositories for implementation examples.'),
+          make('Stack Overflow search','Troubleshooting',`https://stackoverflow.com/search?q=${query}`,'Search Stack Overflow questions and answers about this goal.'),
           make('Figma','Design','https://www.figma.com/files/','Design, prototype, and review the interface.')
         ],
         planning:[
@@ -337,11 +369,6 @@
     function progress(task) { return task.steps.length ? Math.round(task.steps.filter(s=>s.done).length/task.steps.length*100) : 0; }
     function status(task) { const p=progress(task); return p===100?'completed':p>0?'active':'planned'; }
     function fmtDate(date) { if(!date) return 'No due date'; const parsed=new Date(date+'T12:00:00'); return parsed.toLocaleDateString(undefined,{month:'short',day:'numeric'}); }
-    function titleFromGoal(goal) {
-      const clean=goal.trim().replace(/^(i need to|help me|please|i want to)\s+/i,'').replace(/[.!?]+$/,'');
-      const words=clean.split(/\s+/).slice(0,7).join(' ');
-      return words.charAt(0).toUpperCase()+words.slice(1);
-    }
     function detectCategory(goal) {
       const text=goal.toLowerCase();
       if(/code|app|website|software|debug|program|api|extension|develop|build/.test(text)) return 'development';
@@ -446,12 +473,27 @@
     function openCreate() {
       const fragment=document.getElementById('createTemplate').content.cloneNode(true); document.body.append(fragment);
       const backdrop=document.querySelector('[data-backdrop]'); const form=document.getElementById('createForm');
-      const close=()=>backdrop.remove(); backdrop.querySelectorAll('[data-close]').forEach(b=>b.onclick=close);
+      const submit=form.querySelector('#createSubmit'); const errorMessage=form.querySelector('#createError');
+      let controller;
+      const close=()=>{controller?.abort();backdrop.remove();}; backdrop.querySelectorAll('[data-close]').forEach(b=>b.onclick=close);
       backdrop.addEventListener('click',e=>{if(e.target===backdrop)close();});
-      form.addEventListener('submit',e=>{e.preventDefault(); const data=new FormData(form), goal=String(data.get('goal')).trim(); if(!goal)return;
-        const category=data.get('category')==='auto'?detectCategory(goal):data.get('category'); const plan=plans[category];
-        const task={id:uid(),title:String(data.get('title')).trim()||titleFromGoal(goal),description:goal,category,priority:data.get('priority'),due:data.get('due'),created:Date.now(),tools:[...plan.tools],resources:buildResourceKit(goal,category),steps:plan.steps.map(text=>({id:uid(),text,done:false}))};
-        state.tasks.unshift(task); saveState(); close(); render(); toast('Workflow created.'); openWorkspace(task.id);
+      form.addEventListener('submit',async e=>{
+        e.preventDefault();
+        const data=new FormData(form), goal=String(data.get('goal')).trim(); if(!goal)return;
+        errorMessage.textContent=''; submit.disabled=true; submit.textContent='Generating…';
+        controller=new AbortController();
+        try {
+          const requestedCategory=String(data.get('category'));
+          const workflow=await generateWorkflow(goal,requestedCategory,controller.signal);
+          if(!backdrop.isConnected)return;
+          const category=workflow.category;
+          const task={id:uid(),title:String(data.get('title')).trim()||workflow.title,description:goal,category,priority:data.get('priority'),due:data.get('due'),created:Date.now(),tools:workflow.tools,resources:buildResourceKit(goal,category),steps:workflow.steps.map(text=>({id:uid(),text,done:false}))};
+          state.tasks.unshift(task); saveState(); close(); render(); toast('AI workflow created.'); openWorkspace(task.id);
+        } catch(error) {
+          if(error.name!=='AbortError'&&backdrop.isConnected) errorMessage.textContent=error.message||'TaskOps could not generate this workflow.';
+        } finally {
+          if(backdrop.isConnected){submit.disabled=false;submit.textContent='Create workflow';}
+        }
       });
       setTimeout(()=>document.getElementById('goal').focus(),0);
     }

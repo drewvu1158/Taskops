@@ -1,0 +1,17 @@
+{
+  "name": "taskops-bedrock-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "TaskOps workflow generation Lambda for Amazon Bedrock",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check src/index.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.922.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

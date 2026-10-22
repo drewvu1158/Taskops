@@ -1,0 +1,5 @@
+{
+  "name": "taskops-workflow-lambda",
+  "private": true,
+  "type": "module"
+}
