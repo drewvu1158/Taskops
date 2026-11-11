@@ -85,6 +85,7 @@ function createOverlay() {
           --text:#1c1a16; --muted:#6a655c; --faint:#8a847a; --line:#e4dfd4; --line-strong:#cfc8bb;
           --ink:#1c1a16; --on-ink:#f7f5f0; --green:#2f6a49; --amber:#8a5a22; --red:#8d3c3c;
           --nav-hover:#efece6; --drop-over:#faf6ef; --track:#e7e2d8; --topbar:#f4f1ea;
+          --accent:#b85c38; --accent-hover:#9f4e30; --on-accent:#fffdf9; --accent-soft:#efe2d9;
           --serif:"IBM Plex Serif", Georgia, serif; --sans:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
           height:100vh; display:flex; flex-direction:column; color:var(--text); background:var(--bg);
           border-left:1px solid var(--line); font:14px/1.5 var(--sans);
@@ -94,10 +95,11 @@ function createOverlay() {
           --text:#e9e6de; --muted:#a8a196; --faint:#817b71; --line:#2e2c27; --line-strong:#3f3c35;
           --ink:#e9e6de; --on-ink:#1a1916; --green:#82c19a; --amber:#d0a662; --red:#df9797;
           --nav-hover:#211f1a; --drop-over:#24211c; --track:#302e28; --topbar:#161613;
+          --accent:#d28b64; --accent-hover:#e0a178; --on-accent:#1b1915; --accent-soft:#2d241e;
         }
         .shell h1,.shell h3 { margin:0; font-family:var(--serif); font-weight:500; letter-spacing:-.02em; }
         .head { display:flex; align-items:center; gap:10px; height:56px; padding:0 16px; border-bottom:1px solid var(--line); background:var(--topbar); }
-        .logo { width:28px; height:28px; display:grid; place-items:center; border:1px solid var(--line-strong); border-radius:4px; color:var(--text); background:var(--surface); font-family:var(--serif); font-size:16px; font-weight:500; }
+        .logo { width:28px; height:28px; display:grid; place-items:center; border:1px solid var(--accent); border-radius:4px; color:var(--accent); background:var(--surface); font-family:var(--serif); font-size:16px; font-weight:500; }
         .head-copy strong { display:block; font-size:14px; font-weight:550; line-height:1.1; }
         .head-copy small { display:block; margin-top:2px; color:var(--faint); font-size:11px; }
         .theme-toggle,.close { border:1px solid var(--line-strong); border-radius:4px; background:var(--surface); color:var(--text); }
@@ -113,8 +115,8 @@ function createOverlay() {
         textarea:focus,input:focus { border-color:var(--ink); }
         .button { display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--line-strong); border-radius:4px; padding:8px 12px; color:var(--text); background:var(--surface); font-weight:500; }
         .button:hover { background:var(--nav-hover); }
-        .button.primary { border-color:var(--ink); color:var(--on-ink); background:var(--ink); }
-        .button.primary:hover { opacity:.86; }
+        .button.primary { border-color:var(--accent); color:var(--on-accent); background:var(--accent); }
+        .button.primary:hover { border-color:var(--accent-hover); background:var(--accent-hover); opacity:1; }
         .button:disabled { cursor:wait; opacity:.55; }
         .section { display:flex; align-items:center; justify-content:space-between; margin:18px 0 10px; }
         .section strong { color:var(--faint); font-size:12px; font-weight:500; letter-spacing:.04em; text-transform:uppercase; }
@@ -127,13 +129,13 @@ function createOverlay() {
         .meta { margin-top:4px; color:var(--faint); font-size:11px; }
         .source { display:block; max-width:260px; margin-top:5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--faint); font-size:11px; }
         .progress { height:2px; margin:10px 0 0; overflow:hidden; background:var(--track); }
-        .progress span { display:block; height:100%; background:var(--ink); }
+        .progress span { display:block; height:100%; background:var(--accent); }
         .icon { width:26px; height:26px; border:1px solid var(--line); border-radius:4px; color:var(--muted); background:var(--surface); }
         .icon:hover { color:var(--text); border-color:var(--line-strong); }
         .steps { display:grid; margin-top:12px; border-top:1px solid var(--line); }
         .step { display:grid; grid-template-columns:auto 1fr; gap:9px; align-items:start; padding:9px 12px; border-bottom:1px solid var(--line); }
         .step:last-child { border-bottom:0; }
-        .step input { width:15px; height:15px; min-height:15px; padding:0; margin-top:2px; accent-color:var(--ink); }
+        .step input { width:15px; height:15px; min-height:15px; padding:0; margin-top:2px; accent-color:var(--accent); }
         .step.done span { color:var(--faint); text-decoration:line-through; }
         .tools { display:flex; flex-wrap:wrap; gap:6px; padding:10px 12px; border-top:1px solid var(--line); }
         .tool { color:var(--muted); font-size:11px; }
@@ -152,7 +154,7 @@ function createOverlay() {
         .auth-links[hidden] { display:none; }
         .app[hidden] { display:none; }
         .notice { position:absolute; right:14px; bottom:14px; max-width:calc(100% - 28px); padding:9px 11px; border:1px solid var(--line-strong); border-radius:4px; color:var(--text); background:var(--surface); }
-        :focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
+        :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
       </style>
       <aside class="shell" data-theme="${currentTheme}" aria-label="TaskOps overlay">
         <header class="head"><div class="logo">T</div><div class="head-copy"><strong>TaskOps</strong><small>Workflow overlay</small></div><button class="theme-toggle" type="button" aria-pressed="false">Dark</button><button class="close" aria-label="Close TaskOps">×</button></header>
