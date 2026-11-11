@@ -4,6 +4,32 @@
   window.__taskOpsOverlayLoaded = true;
 
   const STORAGE_KEY = 'taskops.overlay.tasks.v1';
+
+  const THEME_KEY = 'taskops.overlay.theme';
+
+  function detectTheme() {
+    try {
+      const savedTheme = localStorage.getItem('taskops.theme');
+      if (savedTheme === 'light' || savedTheme === 'dark') return savedTheme;
+    } catch (_) {}
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
+  let currentTheme = detectTheme();
+
+  function paintTheme(root, theme, persist = true) {
+    const next = theme === 'dark' ? 'dark' : 'light';
+    currentTheme = next;
+    const shell = root.querySelector('.shell');
+    if (shell) shell.dataset.theme = next;
+    root.querySelectorAll('.theme-toggle').forEach(button => {
+      button.textContent = next === 'dark' ? 'Light' : 'Dark';
+      button.setAttribute('aria-pressed', String(next === 'dark'));
+      button.setAttribute('aria-label', next === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+    });
+    if (persist) chrome.storage.local.set({ [THEME_KEY]: next }).catch(() => {});
+  }
+
   let host;
   let tasks = [];
 
@@ -43,50 +69,124 @@
     });
   }
 
-  function createOverlay() {
+function createOverlay() {
     host = document.createElement('div');
     host.id = 'taskops-extension-root';
-    host.style.cssText = 'all:initial;position:fixed;inset:0 0 0 auto;width:min(390px,100vw);z-index:2147483647;display:none;';
+    host.style.cssText = 'all:initial;position:fixed;inset:0 0 0 auto;width:min(400px,100vw);z-index:2147483647;display:none;';
     const root = host.attachShadow({ mode: 'open' });
     root.innerHTML = `
       <style>
-        :host{all:initial}*{box-sizing:border-box}button,input,textarea{font:inherit}.shell{height:100vh;display:flex;flex-direction:column;color:#e8edff;background:#0b1326;border-left:1px solid rgba(255,255,255,.12);box-shadow:-18px 0 60px rgba(0,0,0,.45);font:13px/1.45 Inter,system-ui,sans-serif}.head{display:flex;align-items:center;gap:10px;padding:16px 17px;border-bottom:1px solid rgba(255,255,255,.09);background:#101a2e}.logo{width:34px;height:34px;display:grid;place-items:center;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#a978ff);font-size:18px;font-weight:800}.head strong{font-size:16px}.head small{display:block;color:#8290aa}.close{margin-left:auto;width:32px;height:32px;border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#aab5ca;background:#17233a;cursor:pointer}.body{flex:1;overflow:auto;padding:16px}.intro{margin:0 0 13px;color:#9aa7bd}.create{display:grid;gap:9px;padding:13px;border:1px solid rgba(169,120,255,.2);border-radius:12px;background:#111c31}textarea{min-height:74px;resize:vertical;padding:10px;border:1px solid rgba(255,255,255,.11);border-radius:8px;color:#eef2ff;background:#0b1528;outline:none}textarea:focus{border-color:#a978ff}.button{border:1px solid rgba(255,255,255,.11);border-radius:8px;padding:9px 11px;color:#e8edff;background:#1a2841;font-weight:700;cursor:pointer}.button.primary{border:0;color:#24064e;background:linear-gradient(135deg,#d2bbff,#a978ff)}.button:hover{filter:brightness(1.12)}.section{display:flex;align-items:center;justify-content:space-between;margin:20px 1px 9px}.section strong{font-size:12px;text-transform:uppercase;letter-spacing:.08em}.count{color:#8491a9}.empty{padding:28px 15px;text-align:center;color:#78869f;border:1px dashed rgba(255,255,255,.12);border-radius:11px}.tasks{display:grid;gap:10px}.task{border:1px solid rgba(255,255,255,.1);border-radius:12px;background:#101a2e;overflow:hidden}.task-head{display:grid;grid-template-columns:1fr auto;gap:8px;padding:12px}.task h3{margin:0;font-size:14px}.meta{margin-top:3px;color:#7f8da6;font-size:10px}.progress{height:5px;margin-top:9px;overflow:hidden;border-radius:99px;background:#202d46}.progress span{display:block;height:100%;background:linear-gradient(90deg,#4cd7f6,#7c3aed)}.icon{width:28px;height:28px;border:1px solid rgba(255,255,255,.09);border-radius:7px;color:#9aa7bd;background:#17233a;cursor:pointer}.steps{display:grid;gap:1px;border-top:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04)}.step{display:grid;grid-template-columns:auto 1fr;gap:9px;align-items:start;padding:9px 12px;background:#0f192c}.step input{width:16px;height:16px;margin-top:1px;accent-color:#7c3aed}.step.done span{text-decoration:line-through;color:#66748d}.tools{display:flex;flex-wrap:wrap;gap:5px;padding:10px 12px;border-top:1px solid rgba(255,255,255,.07)}.tool{padding:3px 6px;border:1px solid #31405b;border-radius:5px;color:#b9c2d2;background:#17243b;font-size:9px}.source{display:block;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#70809b}.notice{position:fixed;right:14px;bottom:14px;max-width:330px;padding:9px 12px;border:1px solid rgba(76,215,246,.28);border-radius:8px;color:#dffaff;background:#102238;box-shadow:0 12px 35px rgba(0,0,0,.35)}
-        .button:disabled{cursor:wait;opacity:.65}.notice{max-width:calc(100% - 30px)}
-        .app[hidden]{display:none}.session{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 12px;padding:7px 10px;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:#111c31}.session[hidden]{display:none}.session-email{font-size:10px;color:#9aa7bd;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.auth{display:grid;gap:10px}.auth[hidden]{display:none}.auth-form{display:grid;gap:9px}.auth-form[hidden]{display:none}.auth-form p.intro{margin:0}.auth input{min-height:38px;padding:9px 10px;border:1px solid rgba(255,255,255,.11);border-radius:8px;color:#eef2ff;background:#0b1528;outline:none}.auth input:focus{border-color:#a978ff}.auth-error{min-height:16px;margin:0;color:#fda4af;font-size:11px}.link{border:0;padding:0;color:#c4b5fd;background:transparent;font-size:11px;font-weight:700;cursor:pointer;text-decoration:underline}.auth-links{display:flex;justify-content:space-between;gap:8px}.auth-links[hidden]{display:none}
+        :host { all: initial; }
+        * { box-sizing: border-box; }
+        button,input,textarea { font: inherit; color: inherit; }
+        button { cursor: pointer; }
+        .shell {
+          --bg:#f4f1ea; --surface:#fffcf8; --surface-2:#f7f5f0; --surface-3:#efece5;
+          --text:#1c1a16; --muted:#6a655c; --faint:#8a847a; --line:#e4dfd4; --line-strong:#cfc8bb;
+          --ink:#1c1a16; --on-ink:#f7f5f0; --green:#2f6a49; --amber:#8a5a22; --red:#8d3c3c;
+          --nav-hover:#efece6; --drop-over:#faf6ef; --track:#e7e2d8; --topbar:#f4f1ea;
+          --serif:"IBM Plex Serif", Georgia, serif; --sans:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+          height:100vh; display:flex; flex-direction:column; color:var(--text); background:var(--bg);
+          border-left:1px solid var(--line); font:14px/1.5 var(--sans);
+        }
+        .shell[data-theme="dark"] {
+          --bg:#161613; --surface:#1f1e1a; --surface-2:#25231f; --surface-3:#2c2a24;
+          --text:#e9e6de; --muted:#a8a196; --faint:#817b71; --line:#2e2c27; --line-strong:#3f3c35;
+          --ink:#e9e6de; --on-ink:#1a1916; --green:#82c19a; --amber:#d0a662; --red:#df9797;
+          --nav-hover:#211f1a; --drop-over:#24211c; --track:#302e28; --topbar:#161613;
+        }
+        .shell h1,.shell h3 { margin:0; font-family:var(--serif); font-weight:500; letter-spacing:-.02em; }
+        .head { display:flex; align-items:center; gap:10px; height:56px; padding:0 16px; border-bottom:1px solid var(--line); background:var(--topbar); }
+        .logo { width:28px; height:28px; display:grid; place-items:center; border:1px solid var(--line-strong); border-radius:4px; color:var(--text); background:var(--surface); font-family:var(--serif); font-size:16px; font-weight:500; }
+        .head-copy strong { display:block; font-size:14px; font-weight:550; line-height:1.1; }
+        .head-copy small { display:block; margin-top:2px; color:var(--faint); font-size:11px; }
+        .theme-toggle,.close { border:1px solid var(--line-strong); border-radius:4px; background:var(--surface); color:var(--text); }
+        .theme-toggle { margin-left:auto; padding:5px 9px; font-size:12px; font-weight:500; }
+        .theme-toggle:hover,.close:hover { background:var(--nav-hover); }
+        .close { width:32px; height:32px; font-size:18px; line-height:1; }
+        .body { flex:1; overflow:auto; padding:18px; }
+        .intro { margin:0 0 14px; color:var(--muted); font-size:13px; }
+        .create { display:grid; gap:10px; padding:0 0 18px; border:0; border-bottom:1px solid var(--line); border-radius:0; background:transparent; }
+        .create label { color:var(--muted); font-size:12px; font-weight:500; }
+        textarea,input { min-height:36px; padding:8px 10px; border:1px solid var(--line-strong); border-radius:4px; color:var(--text); background:var(--surface); outline:none; }
+        textarea { min-height:74px; resize:vertical; }
+        textarea:focus,input:focus { border-color:var(--ink); }
+        .button { display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--line-strong); border-radius:4px; padding:8px 12px; color:var(--text); background:var(--surface); font-weight:500; }
+        .button:hover { background:var(--nav-hover); }
+        .button.primary { border-color:var(--ink); color:var(--on-ink); background:var(--ink); }
+        .button.primary:hover { opacity:.86; }
+        .button:disabled { cursor:wait; opacity:.55; }
+        .section { display:flex; align-items:center; justify-content:space-between; margin:18px 0 10px; }
+        .section strong { color:var(--faint); font-size:12px; font-weight:500; letter-spacing:.04em; text-transform:uppercase; }
+        .count { color:var(--faint); font-size:12px; }
+        .empty { padding:18px 0; color:var(--faint); font-size:13px; border:0; }
+        .tasks { display:grid; gap:10px; }
+        .task { border:1px solid var(--line); border-radius:4px; background:var(--surface); }
+        .task-head { display:grid; grid-template-columns:1fr auto; gap:8px; padding:12px 12px 0; }
+        .task h3 { font-size:17px; }
+        .meta { margin-top:4px; color:var(--faint); font-size:11px; }
+        .source { display:block; max-width:260px; margin-top:5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--faint); font-size:11px; }
+        .progress { height:2px; margin:10px 0 0; overflow:hidden; background:var(--track); }
+        .progress span { display:block; height:100%; background:var(--ink); }
+        .icon { width:26px; height:26px; border:1px solid var(--line); border-radius:4px; color:var(--muted); background:var(--surface); }
+        .icon:hover { color:var(--text); border-color:var(--line-strong); }
+        .steps { display:grid; margin-top:12px; border-top:1px solid var(--line); }
+        .step { display:grid; grid-template-columns:auto 1fr; gap:9px; align-items:start; padding:9px 12px; border-bottom:1px solid var(--line); }
+        .step:last-child { border-bottom:0; }
+        .step input { width:15px; height:15px; min-height:15px; padding:0; margin-top:2px; accent-color:var(--ink); }
+        .step.done span { color:var(--faint); text-decoration:line-through; }
+        .tools { display:flex; flex-wrap:wrap; gap:6px; padding:10px 12px; border-top:1px solid var(--line); }
+        .tool { color:var(--muted); font-size:11px; }
+        .tool:not(:last-child)::after { content:"·"; margin-left:6px; color:var(--faint); }
+        .session { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:0 0 14px; padding:0 0 12px; border-bottom:1px solid var(--line); }
+        .session[hidden] { display:none; }
+        .session-email { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--faint); font-size:11px; }
+        .auth { display:grid; gap:12px; }
+        .auth[hidden] { display:none; }
+        .auth-form { display:grid; gap:10px; }
+        .auth-form[hidden] { display:none; }
+        .auth input { width:100%; }
+        .auth-error { min-height:16px; margin:0; color:var(--red); font-size:12px; }
+        .link { border:0; padding:0; color:var(--text); background:transparent; font-size:12px; font-weight:500; text-decoration:underline; text-underline-offset:3px; }
+        .auth-links { display:flex; justify-content:space-between; gap:10px; }
+        .auth-links[hidden] { display:none; }
+        .app[hidden] { display:none; }
+        .notice { position:absolute; right:14px; bottom:14px; max-width:calc(100% - 28px); padding:9px 11px; border:1px solid var(--line-strong); border-radius:4px; color:var(--text); background:var(--surface); }
+        :focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
       </style>
-      <aside class="shell" aria-label="TaskOps overlay">
-        <header class="head"><div class="logo">✓</div><div><strong>TaskOps</strong><small>Page workflow overlay</small></div><button class="close" aria-label="Close TaskOps">×</button></header>
+      <aside class="shell" data-theme="${currentTheme}" aria-label="TaskOps overlay">
+        <header class="head"><div class="logo">T</div><div class="head-copy"><strong>TaskOps</strong><small>Workflow overlay</small></div><button class="theme-toggle" type="button" aria-pressed="false">Dark</button><button class="close" aria-label="Close TaskOps">×</button></header>
         <main class="body">
           <div class="auth" hidden>
             <p class="intro">Sign in to sync your workflows privately with AWS.</p>
             <form class="auth-form auth-signin">
-              <input class="field" type="email" name="email" required placeholder="you@example.com" autocomplete="email" aria-label="Email">
-              <input class="field" type="password" name="password" required placeholder="Password" autocomplete="current-password" aria-label="Password">
+              <input type="email" name="email" required placeholder="you@example.com" autocomplete="email" aria-label="Email">
+              <input type="password" name="password" required placeholder="Password" autocomplete="current-password" aria-label="Password">
               <button class="button primary" type="submit">Sign in</button>
             </form>
             <div class="auth-links" data-mode="signin"><button type="button" class="link" data-goto="signup">Create account</button><button type="button" class="link" data-goto="forgot">Forgot password?</button></div>
             <form class="auth-form auth-signup" hidden>
-              <input class="field" type="email" name="email" required placeholder="you@example.com" autocomplete="email" aria-label="Email">
-              <input class="field" type="password" name="password" required minlength="8" placeholder="8+ chars, upper, lower & number" autocomplete="new-password" aria-label="Password">
+              <input type="email" name="email" required placeholder="you@example.com" autocomplete="email" aria-label="Email">
+              <input type="password" name="password" required minlength="8" placeholder="8+ characters, upper, lower &amp; number" autocomplete="new-password" aria-label="Password">
               <button class="button primary" type="submit">Create account</button>
             </form>
             <div class="auth-links" data-mode="signup" hidden><button type="button" class="link" data-goto="signin">Have an account? Sign in</button></div>
             <form class="auth-form auth-confirm" hidden>
               <p class="intro">We emailed a code to <b class="confirm-email"></b>.</p>
-              <input class="field" type="text" name="code" required inputmode="numeric" maxlength="6" placeholder="123456" aria-label="Verification code">
+              <input type="text" name="code" required inputmode="numeric" maxlength="6" placeholder="123456" aria-label="Verification code">
               <button class="button primary" type="submit">Confirm email</button>
               <div class="auth-links"><button type="button" class="link resend">Resend code</button><button type="button" class="link" data-goto="signin">Back to sign in</button></div>
             </form>
             <form class="auth-form auth-forgot" hidden>
               <p class="intro">Enter your email and we will send a reset code.</p>
-              <input class="field" type="email" name="email" required placeholder="you@example.com" autocomplete="email" aria-label="Email">
+              <input type="email" name="email" required placeholder="you@example.com" autocomplete="email" aria-label="Email">
               <button class="button primary" type="submit">Send reset code</button>
               <div class="auth-links"><button type="button" class="link" data-goto="signin">Back to sign in</button></div>
             </form>
             <form class="auth-form auth-reset" hidden>
               <p class="intro">Enter the code we sent to <b class="reset-email"></b> and choose a new password.</p>
-              <input class="field" type="text" name="code" required inputmode="numeric" maxlength="6" placeholder="123456" aria-label="Reset code">
-              <input class="field" type="password" name="password" required minlength="8" placeholder="New password" autocomplete="new-password" aria-label="New password">
+              <input type="text" name="code" required inputmode="numeric" maxlength="6" placeholder="123456" aria-label="Reset code">
+              <input type="password" name="password" required minlength="8" placeholder="New password" autocomplete="new-password" aria-label="New password">
               <button class="button primary" type="submit">Reset password</button>
               <div class="auth-links"><button type="button" class="link" data-goto="signin">Back to sign in</button></div>
             </form>
@@ -94,13 +194,22 @@
           </div>
           <div class="app">
             <div class="session" hidden><span class="session-email"></span><button class="link signout" type="button">Sign out</button></div>
-            <p class="intro">Turn a goal into steps without leaving this page.</p>
+            <p class="intro">Describe a goal. Get steps without leaving this page.</p>
             <form class="create"><label for="taskops-goal">What do you need to accomplish?</label><textarea id="taskops-goal" maxlength="500" required placeholder="Research this topic and prepare a summary…"></textarea><button class="button primary" type="submit">Generate workflow</button></form>
             <div class="section"><strong>Saved workflows</strong><span class="count"></span></div><div class="tasks"></div>
           </div>
         </main>
       </aside>`;
     document.documentElement.append(host);
+    const shell = root.querySelector('.shell');
+    paintTheme(root, currentTheme, false);
+    root.querySelector('.theme-toggle').addEventListener('click', () => {
+      paintTheme(root, currentTheme === 'dark' ? 'light' : 'dark', true);
+    });
+    chrome.storage.local.get(THEME_KEY).then(stored => {
+      const savedTheme = stored?.[THEME_KEY];
+      if (savedTheme === 'light' || savedTheme === 'dark') paintTheme(root, savedTheme, false);
+    }).catch(() => {});
     root.querySelector('.close').addEventListener('click', hide);
     root.querySelector('form.create').addEventListener('submit', createTask);
     bindAuth(root);

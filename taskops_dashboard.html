@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f4f1ea">
   <title>TaskOps</title>
+  <script>
+    try {
+      var savedTheme = localStorage.getItem('taskops.theme');
+      var preferredTheme = savedTheme || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.dataset.theme = preferredTheme;
+    } catch (_) {
+      document.documentElement.dataset.theme = 'light';
+    }
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet">
@@ -27,8 +36,51 @@
       --green:#2f6a49;
       --amber:#8a5a22;
       --red:#8d3c3c;
+      --nav-hover:#efece6;
+      --nav-active:#ebe7df;
+      --btn-hover-bg:#faf8f4;
+      --btn-hover-border:#b7b0a4;
+      --btn-primary-hover:#33302b;
+      --on-ink:#f7f5f0;
+      --danger-bg:#faf6f5;
+      --danger-border:#e4cfcb;
+      --track:#e7e2d8;
+      --drop-over:#faf6ef;
+      --topbar:#f4f1ea;
+      --modal-overlay:rgba(28,26,22,.42);
       --serif:"IBM Plex Serif", Georgia, serif;
       --sans:"IBM Plex Sans", "Segoe UI", sans-serif;
+    }
+    [data-theme="dark"] {
+      color-scheme: dark;
+      --bg:#161613;
+      --sidebar:#1a1916;
+      --surface:#1f1e1a;
+      --surface-2:#25231f;
+      --surface-3:#2c2a24;
+      --text:#e9e6de;
+      --muted:#a8a196;
+      --faint:#817b71;
+      --line:#2e2c27;
+      --line-strong:#3f3c35;
+      --ink:#e9e6de;
+      --primary:#e9e6de;
+      --primary-soft:#2c2a24;
+      --green:#82c19a;
+      --amber:#d0a662;
+      --red:#df9797;
+      --nav-hover:#211f1a;
+      --nav-active:#25231e;
+      --btn-hover-bg:#24221e;
+      --btn-hover-border:#57534a;
+      --btn-primary-hover:#c9c6bd;
+      --on-ink:#1a1916;
+      --danger-bg:#2a1f1f;
+      --danger-border:#493030;
+      --track:#302e28;
+      --drop-over:#24211c;
+      --topbar:#161613;
+      --modal-overlay:rgba(8,8,7,.65);
     }
     * { box-sizing:border-box; }
     html { scroll-behavior:smooth; }
@@ -47,14 +99,14 @@
     .brand p { margin:0; padding:0; color:var(--faint); border:0; border-radius:0; font-family:var(--sans); font-size:11px; font-weight:400; text-transform:none; letter-spacing:0; }
     .nav { display:grid; gap:1px; }
     .nav-button { border:0; width:100%; padding:8px 10px; display:flex; align-items:center; gap:10px; border-radius:4px; color:var(--muted); background:transparent; text-align:left; font-weight:400; }
-    .nav-button:hover { color:var(--text); background:#efece6; }
-    .nav-button.active { color:var(--text); background:#ebe7df; font-weight:500; }
+    .nav-button:hover { color:var(--text); background:var(--nav-hover); }
+    .nav-button.active { color:var(--text); background:var(--nav-active); font-weight:500; }
     .nav-icon { width:16px; color:currentColor; }
     .nav-button.active .nav-icon { color:currentColor; }
     .sidebar-footer { margin-top:auto; padding:14px 8px 0; border-top:1px solid var(--line); }
     .storage-note { color:var(--faint); font-size:11px; display:block; line-height:1.45; }
     .storage-note span:first-child { display:none; }
-    .topbar { position:fixed; top:0; left:220px; right:0; height:56px; display:flex; align-items:center; gap:18px; padding:0 24px; background:var(--bg); border-bottom:1px solid var(--line); z-index:20; }
+    .topbar { position:fixed; top:0; left:220px; right:0; height:56px; display:flex; align-items:center; gap:18px; padding:0 24px; background:var(--topbar); border-bottom:1px solid var(--line); z-index:20; }
     .topbar h2 { margin:0; font-family:var(--sans); font-size:13px; font-weight:500; letter-spacing:0; min-width:110px; color:var(--muted); }
     .search { position:relative; flex:1; max-width:360px; }
     .search input { width:100%; height:34px; color:var(--text); background:var(--surface); border:1px solid var(--line); border-radius:4px; padding:7px 12px 7px 34px; }
@@ -63,12 +115,12 @@
     .top-actions { margin-left:auto; display:flex; align-items:center; gap:8px; }
     .avatar { width:30px; height:30px; border:1px solid var(--line-strong); border-radius:4px; display:grid; place-items:center; color:var(--text); background:var(--surface); font-size:10px; font-weight:500; }
     .btn { border:1px solid var(--line-strong); color:var(--text); background:var(--surface); border-radius:4px; padding:7px 12px; font-weight:500; }
-    .btn:hover { border-color:#b7b0a4; background:#faf8f4; }
-    .btn.primary { color:#f7f5f0; background:var(--ink); border-color:var(--ink); }
-    .btn.primary:hover { background:#33302b; border-color:#33302b; }
+    .btn:hover { border-color:var(--btn-hover-border); background:var(--btn-hover-bg); }
+    .btn.primary { color:var(--on-ink); background:var(--ink); border-color:var(--ink); }
+    .btn.primary:hover { background:var(--btn-primary-hover); border-color:var(--btn-primary-hover); }
     .btn:disabled { cursor:wait; opacity:.55; }
     .btn.ghost { background:transparent; }
-    .btn.danger { color:var(--red); border-color:#e4cfcb; background:#faf6f5; }
+    .btn.danger { color:var(--red); border-color:var(--danger-border); background:var(--danger-bg); }
     .btn.small { padding:5px 8px; font-size:12px; }
     .btn.big { padding:10px 16px; font-size:14px; border-radius:4px; }
     .mobile-menu { display:none; border:0; color:var(--text); background:transparent; font-size:18px; }
@@ -107,7 +159,7 @@
     .task-card h4 { margin:14px 0 6px; font-family:var(--serif); font-size:18px; font-weight:500; letter-spacing:-.02em; }
     .task-card .description { display:-webkit-box; min-height:40px; margin:0 0 16px; overflow:hidden; color:var(--muted); font-size:13px; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
     .progress-meta { display:flex; justify-content:space-between; color:var(--faint); font-size:11px; font-weight:500; }
-    .progress { height:2px; margin:6px 0 14px; overflow:hidden; border-radius:0; background:#e7e2d8; }
+    .progress { height:2px; margin:6px 0 14px; overflow:hidden; border-radius:0; background:var(--track); }
     .progress span { display:block; height:100%; border-radius:0; background:var(--ink); }
     .chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
     .chip { padding:0; color:var(--muted); border:0; border-radius:0; background:none; font-size:11px; text-decoration:none; }
@@ -171,7 +223,7 @@
     .setting { padding:18px; border:1px solid var(--line); border-radius:4px; background:var(--surface); }
     .setting h4 { margin:0 0 6px; font-family:var(--serif); font-size:18px; font-weight:500; }
     .setting p { margin:0 0 14px; color:var(--muted); font-size:13px; }
-    .modal-backdrop { position:fixed; inset:0; display:grid; place-items:center; padding:20px; background:rgba(28,26,22,.42); z-index:100; }
+    .modal-backdrop { position:fixed; inset:0; display:grid; place-items:center; padding:20px; background:var(--modal-overlay); z-index:100; }
     .modal { width:min(620px,100%); max-height:min(850px,92vh); overflow:auto; border:1px solid var(--line-strong); border-radius:6px; background:var(--surface); }
     .modal.wide { width:min(780px,100%); }
     .modal-head { position:sticky; top:0; z-index:2; display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--line); background:var(--surface); }
@@ -200,7 +252,7 @@
     .toast { width:min(340px,calc(100vw - 40px)); padding:10px 12px; border:1px solid var(--line-strong); border-radius:4px; color:var(--text); background:var(--surface); animation:none; }
     .board { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; align-items:start; }
     .board-column { display:flex; flex-direction:column; gap:8px; min-height:120px; padding:12px 0 0; border:0; border-top:2px solid var(--ink); border-radius:0; background:transparent; }
-    .board-column.drag-over { border-top-color:var(--amber); background:#faf6ef; }
+    .board-column.drag-over { border-top-color:var(--amber); background:var(--drop-over); }
     .board-head { display:flex; align-items:center; justify-content:space-between; padding:0; }
     .board-head h4 { margin:0; font-family:var(--sans); font-size:12px; font-weight:500; text-transform:none; letter-spacing:0; color:var(--text); }
     .board-count { color:var(--faint); font-size:12px; font-weight:500; }
@@ -309,7 +361,7 @@
     <div class="landing-inner">
       <nav class="landing-nav" aria-label="Landing navigation">
         <a class="landing-brand" href="#" tabindex="-1">TaskOps</a>
-        <div class="landing-actions"><button class="btn ghost" id="navSignIn" type="button">Sign in</button><button class="btn primary" id="navGetStarted" type="button">Create account</button></div>
+        <div class="landing-actions"><button class="btn ghost theme-toggle" type="button" aria-pressed="false">Dark</button><button class="btn ghost" id="navSignIn" type="button">Sign in</button><button class="btn primary" id="navGetStarted" type="button">Create account</button></div>
       </nav>
 
       <header class="landing-hero">
@@ -407,7 +459,7 @@
         <div class="auth-links"><button class="link-button" id="resetBackToSignIn" type="button">Back to sign in</button></div>
       </form>
 
-      <p class="auth-foot">Secured by Amazon Cognito · Data stored in Amazon DynamoDB</p>
+      <p class="auth-foot">Secured by Amazon Cognito · Data stored in Amazon DynamoDB · <button class="link-button theme-toggle" type="button" aria-pressed="false">Dark</button></p>
     </section>
   </div>
 
@@ -428,7 +480,7 @@
     <button class="mobile-menu" id="menuButton" aria-label="Open navigation">☰</button>
     <h2 id="topTitle">Overview</h2>
     <div class="search"><span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></span><label class="sr-only" for="globalSearch">Search tasks</label><input id="globalSearch" type="search" placeholder="Search your workspace" autocomplete="off"></div>
-    <div class="top-actions"><button class="btn primary" data-create>New task</button><button class="btn ghost" id="topSignOut" hidden>Sign out</button><div class="avatar" id="avatar">TO</div></div>
+    <div class="top-actions"><button class="btn ghost theme-toggle" type="button" aria-pressed="false">Dark</button><button class="btn primary" data-create>New task</button><button class="btn ghost" id="topSignOut" hidden>Sign out</button><div class="avatar" id="avatar">TO</div></div>
   </header>
 
   <main><div class="content" id="app" aria-live="polite"></div></main>
@@ -477,6 +529,25 @@
         steps:['Define the outcome and completion criteria','List constraints, people, and resources','Break the outcome into concrete milestones','Estimate and order the work','Schedule milestones and focus blocks','Review progress and remove blockers','Close the plan and capture follow-up actions']
       }
     };
+    const THEME_KEY = 'taskops.theme';
+    function currentTheme() { return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'; }
+    function applyTheme(theme, persist = true) {
+      const next = theme === 'dark' ? 'dark' : 'light';
+      document.documentElement.dataset.theme = next;
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', next === 'dark' ? '#161613' : '#f4f1ea');
+      document.querySelectorAll('.theme-toggle').forEach(button => {
+        button.textContent = next === 'dark' ? 'Light' : 'Dark';
+        button.setAttribute('aria-pressed', String(next === 'dark'));
+        button.setAttribute('aria-label', next === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+      });
+      const modeLabel = document.getElementById('themeModeLabel');
+      if (modeLabel) modeLabel.textContent = next === 'dark' ? 'Dark mode' : 'Light mode';
+      if (persist) {
+        try { localStorage.setItem(THEME_KEY, next); } catch (_) {}
+      }
+    }
+    document.querySelectorAll('.theme-toggle').forEach(button => button.addEventListener('click', () => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark')));
+    applyTheme(currentTheme(), false);
     const AUTH_KEY = 'taskops.auth.v1';
     function cognitoConfig() {
       const c = (window.TASKOPS_CONFIG || {}).cognito;
@@ -1014,6 +1085,7 @@
     }
     function settingsView() {
       app.innerHTML=`<section class="view"><h1 class="page-title">Settings</h1><p class="page-subtitle">Account, profile, backup, and sync. This browser keeps a copy if the API is unavailable.</p><div class="settings-grid">
+        <section class="setting"><h4>Appearance</h4><p>Choose paper for daytime work or ink for low-light rooms. The choice is stored in this browser.</p><div class="signout-row"><span id="themeModeLabel">Light</span><button class="btn theme-toggle" id="settingsThemeToggle" type="button" aria-pressed="false">Dark</button></div></section>
         <section class="setting"><h4>Account</h4><p id="accountDetails">Workspace sync is tied to your Amazon Cognito account.</p><div class="signout-row"><span id="accountEmail"></span><button class="btn" id="settingsSignOut">Sign out</button></div></section>
         <section class="setting"><h4>Profile</h4><p>Your initials appear in the application header.</p><div class="form-group"><label for="profileName">Display name</label><input class="field" id="profileName" value="${escapeHtml(state.profile.name)}" maxlength="50"></div><button class="btn primary" id="saveProfile" style="margin-top:12px">Save profile</button></section>
         <section class="setting"><h4>Export workspace</h4><p>Download all tasks, steps, progress, and preferences as JSON.</p><button class="btn" id="exportData">Download backup</button></section>
