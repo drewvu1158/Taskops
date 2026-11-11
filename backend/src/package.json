@@ -1,5 +1,11 @@
 {
   "name": "taskops-workflow-lambda",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.922.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
 }

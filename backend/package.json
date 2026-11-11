@@ -8,9 +8,6 @@
     "test": "node --test",
     "check": "node --check src/index.js"
   },
-  "dependencies": {
-    "@aws-sdk/client-bedrock-runtime": "^3.922.0"
-  },
   "engines": {
     "node": ">=22"
   }

@@ -3,3 +3,4 @@ taskops-extension/config.js
 backend/node_modules/
 backend/packaged.yaml
 taskops-backend.zip
+backend/src/node_modules/
