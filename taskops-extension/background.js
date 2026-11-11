@@ -25,7 +25,7 @@ async function cognitoRequest(action, payload) {
   try {
     response = await fetch(`https://cognito-idp.${cfg.region}.amazonaws.com/`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-amz-json-1.1', 'X-Amz-Target': `AWSCognitoIdentityServiceProviderService.${action}` },
+      headers: { 'Content-Type': 'application/x-amz-json-1.1', 'X-Amz-Target': `AWSCognitoIdentityProviderService.${action}` },
       body: JSON.stringify(payload)
     });
   } catch (_) {
@@ -35,7 +35,9 @@ async function cognitoRequest(action, payload) {
   }
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const code = String(body?.__type || '').split('#').pop();
+    const headerType = response.headers.get('x-amzn-ErrorType')?.split(':')[0] || '';
+    const code = String(body?.__type || headerType || '').split('#').pop();
+    const cognitoMessage = body?.message || body?.Message || response.headers.get('x-amzn-ErrorMessage') || '';
     const messages = {
       IncorrectUsernamePasswordException: 'Incorrect email or password.',
       UserNotFoundException: 'Incorrect email or password.',
@@ -48,9 +50,10 @@ async function cognitoRequest(action, payload) {
       ExpiredCodeException: 'That code has expired. Request a new one.',
       LimitExceededException: 'Too many attempts. Wait a moment and try again.',
       TooManyRequestsException: 'Too many attempts. Wait a moment and try again.',
+      CodeDeliveryFailureException: 'Cognito could not send the verification email. Try again or ask the account owner to check the sender.',
       PasswordResetRequiredException: 'You need to reset your password before signing in.'
     };
-    const error = new Error(messages[code] || body?.message || 'Amazon Cognito rejected the request.');
+    const error = new Error(messages[code] || cognitoMessage || `Amazon Cognito rejected the request (${code || 'unknown error'}).`);
     error.code = code;
     throw error;
   }
