@@ -5,6 +5,8 @@ REGION="${AWS_REGION:-us-east-1}"
 STACK_NAME="${STACK_NAME:-taskops-bedrock}"
 ALLOWED_ORIGIN="${ALLOWED_ORIGIN:-*}"
 DAILY_QUOTA="${DAILY_QUOTA:-100}"
+API_DAILY_QUOTA="${API_DAILY_QUOTA:-10000}"
+ALARM_EMAIL="${ALARM_EMAIL:-}"
 ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
 BUCKET="taskops-deploy-${ACCOUNT_ID}-${REGION}"
 
@@ -32,7 +34,8 @@ aws cloudformation deploy \
   --region "$REGION" \
   --capabilities CAPABILITY_IAM \
   --no-fail-on-empty-changeset \
-  --parameter-overrides "AllowedOrigin=$ALLOWED_ORIGIN" "DailyQuota=$DAILY_QUOTA"
+  --parameter-overrides "AllowedOrigin=$ALLOWED_ORIGIN" "DailyQuota=$DAILY_QUOTA" "ApiDailyQuota=$API_DAILY_QUOTA" "AlarmEmail=$ALARM_EMAIL" \
+  --tags Project=TaskOps
 
 ENDPOINT="$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" --output text)"
 API_KEY_ID="$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" --query "Stacks[0].Outputs[?OutputKey=='ApiKeyId'].OutputValue" --output text)"

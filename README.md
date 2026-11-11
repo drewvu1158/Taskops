@@ -4,6 +4,8 @@ TaskOps turns a natural-language goal into an actionable workflow. The local das
 
 ```text
 Dashboard or extension → API Gateway → Lambda → Amazon Bedrock Converse
+                                         ├─ DynamoDB shared workspace
+                                         └─ Jira Cloud (push only, after the secret is set)
 ```
 
 The deployed model is Amazon Nova 2 Lite (`us.amazon.nova-2-lite-v1:0`) in `us-east-1`.
@@ -13,7 +15,7 @@ The deployed model is Amazon Nova 2 Lite (`us.amazon.nova-2-lite-v1:0`) in `us-e
 - Node.js 22 or newer
 - Google Chrome, if using the browser extension
 - AWS CLI v2 and an authenticated AWS account for deployment
-- AWS permissions for CloudFormation, IAM, Lambda, API Gateway, S3, and Bedrock
+- AWS permissions for CloudFormation, IAM, Lambda, API Gateway, S3, Bedrock, DynamoDB, CloudWatch, Secrets Manager, and SNS
 
 ## First-time setup and deployment
 
@@ -76,7 +78,7 @@ Open `taskops_dashboard.html` in Chrome. If it was already open, close and reope
 3. Submit the goal.
 4. Confirm that TaskOps displays generated workflow steps, tools, and resources.
 
-The request is sent to the deployed API; the browser never receives AWS credentials.
+The request is sent to the deployed API; the browser never receives AWS credentials. Saved tasks and profile sync through `GET/PUT /state`. This browser keeps a local copy if the API is unreachable. Open a task and choose **Send to Jira** after the Jira secret is configured.
 
 ## Load and run the Chrome extension
 
@@ -105,7 +107,9 @@ npm test
 npm run check
 ```
 
-For an end-to-end check, generate a workflow from the dashboard or extension and confirm that the steps match the submitted goal. API Gateway enforces the client key, request validation, throttling, and daily quota before Lambda calls Bedrock.
+For an end-to-end check, generate a workflow from the dashboard or extension and confirm that the steps match the submitted goal. API Gateway enforces the client key, request validation, and throttling before Lambda calls Bedrock. Lambda enforces the daily generation cap. GitHub Actions runs the same `npm ci`, `npm test`, and `npm run check` commands on push and pull request.
+
+CloudWatch alarms for Lambda errors and throttles, the manual AWS Budgets alert, and Jira setup are documented in [`backend/README.md`](backend/README.md).
 
 ## Security notes
 

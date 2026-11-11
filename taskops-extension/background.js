@@ -32,6 +32,74 @@ async function generateWorkflow(goal) {
   return body.workflow;
 }
 
+const STORAGE_KEY = 'taskops.overlay.tasks.v1';
+let cachedProfile = null;
+
+function apiRoot() {
+  return String((globalThis.TASKOPS_CONFIG || {}).apiUrl || '').replace(/\/workflow\/?$/, '');
+}
+
+async function readLocal() {
+  const stored = await chrome.storage.local.get(STORAGE_KEY);
+  const cached = stored[STORAGE_KEY];
+  if (Array.isArray(cached)) return { tasks: cached, profile: null };
+  if (cached && Array.isArray(cached.tasks)) return { tasks: cached.tasks, profile: cached.profile || null };
+  return { tasks: [], profile: null };
+}
+
+async function writeLocal(tasks, profile) {
+  const record = profile ? { tasks, profile } : { tasks };
+  await chrome.storage.local.set({ [STORAGE_KEY]: record });
+}
+
+async function apiFetch(path, options = {}) {
+  const { apiKey } = globalThis.TASKOPS_CONFIG || {};
+  const root = apiRoot();
+  if (!root || !apiKey) throw new Error('TaskOps is not configured. Deploy the backend, then reload the extension.');
+  const response = await fetch(`${root}${path}`, {
+    method: options.method || 'GET',
+    headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
+    body: options.body
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body?.error?.message || 'TaskOps could not sync workflows.');
+  return body;
+}
+
+async function loadWorkspace() {
+  const local = await readLocal();
+  if (local.profile) cachedProfile = local.profile;
+  try {
+    const remote = await apiFetch('/state');
+    if (remote?.initialized && Array.isArray(remote.tasks)) {
+      cachedProfile = remote.profile || cachedProfile;
+      await writeLocal(remote.tasks, cachedProfile);
+      return remote.tasks;
+    }
+    if (local.tasks.length) {
+      await saveWorkspace(local.tasks);
+      return local.tasks;
+    }
+  } catch (_) {
+    return local.tasks;
+  }
+  return local.tasks;
+}
+
+async function saveWorkspace(tasks) {
+  const profile = cachedProfile;
+  await writeLocal(tasks, profile);
+  try {
+    const body = { tasks };
+    if (profile) body.profile = profile;
+    const saved = await apiFetch('/state', { method: 'PUT', body: JSON.stringify(body) });
+    if (saved?.profile) {
+      cachedProfile = saved.profile;
+      await writeLocal(saved.tasks || tasks, cachedProfile);
+    }
+  } catch (_) {}
+}
+
 chrome.action.onClicked.addListener(async tab => {
   if (!tab.id) return;
   try {
@@ -44,9 +112,23 @@ chrome.action.onClicked.addListener(async tab => {
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.type !== 'TASKOPS_GENERATE') return false;
-  generateWorkflow(message.goal)
-    .then(workflow => sendResponse({ ok: true, workflow }))
-    .catch(error => sendResponse({ ok: false, error: error.message }));
-  return true;
+  if (message?.type === 'TASKOPS_GENERATE') {
+    generateWorkflow(message.goal)
+      .then(workflow => sendResponse({ ok: true, workflow }))
+      .catch(error => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+  if (message?.type === 'TASKOPS_STATE_LOAD') {
+    loadWorkspace()
+      .then(tasks => sendResponse({ ok: true, tasks }))
+      .catch(() => sendResponse({ ok: false, tasks: [] }));
+    return true;
+  }
+  if (message?.type === 'TASKOPS_STATE_SAVE') {
+    saveWorkspace(Array.isArray(message.tasks) ? message.tasks : [])
+      .then(() => sendResponse({ ok: true }))
+      .catch(error => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+  return false;
 });

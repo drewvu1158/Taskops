@@ -12,13 +12,30 @@
     return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
   }
 
+  function cachedTasks(stored) {
+    const cached = stored?.[STORAGE_KEY];
+    if (Array.isArray(cached)) return cached;
+    return Array.isArray(cached?.tasks) ? cached.tasks : [];
+  }
+
   async function loadTasks() {
+    try {
+      const result = await chrome.runtime.sendMessage({ type: 'TASKOPS_STATE_LOAD' });
+      if (result?.ok && Array.isArray(result.tasks)) {
+        tasks = result.tasks;
+        return;
+      }
+    } catch (_) {}
     const stored = await chrome.storage.local.get(STORAGE_KEY);
-    tasks = Array.isArray(stored[STORAGE_KEY]) ? stored[STORAGE_KEY] : [];
+    tasks = cachedTasks(stored);
   }
 
   function saveTasks() {
-    return chrome.storage.local.set({ [STORAGE_KEY]: tasks });
+    return chrome.runtime.sendMessage({ type: 'TASKOPS_STATE_SAVE', tasks }).catch(async () => {
+      const stored = await chrome.storage.local.get(STORAGE_KEY);
+      const profile = stored?.[STORAGE_KEY]?.profile;
+      return chrome.storage.local.set({ [STORAGE_KEY]: profile ? { tasks, profile } : tasks });
+    });
   }
 
   function createOverlay() {
@@ -75,8 +92,11 @@
       tasks.unshift({
         id: makeId(),
         title: workflow.title,
+        description: goal,
         goal,
         category: workflow.category,
+        priority: 'medium',
+        due: '',
         sourceTitle: document.title,
         sourceUrl: location.href,
         tools: workflow.tools,
@@ -123,7 +143,7 @@
       meta.textContent = `${done} of ${task.steps.length} steps · ${percent}%`;
       const source = document.createElement('span');
       source.className = 'source';
-      source.textContent = task.sourceTitle || 'Saved from TaskOps';
+      source.textContent = task.sourceTitle || task.description || task.goal || 'Saved from TaskOps';
       const progress = document.createElement('div');
       progress.className = 'progress';
       const fill = document.createElement('span');
@@ -177,12 +197,13 @@
   }
 
   async function toggle() {
-    if (!host) {
-      await loadTasks();
-      createOverlay();
-    }
-    host.style.display = host.style.display === 'none' ? 'block' : 'none';
-    if (host.style.display === 'block') setTimeout(() => host.shadowRoot.querySelector('textarea').focus(), 0);
+    if (!host) createOverlay();
+    const opening = host.style.display === 'none';
+    host.style.display = opening ? 'block' : 'none';
+    if (!opening) return;
+    await loadTasks();
+    renderTasks();
+    setTimeout(() => host.shadowRoot.querySelector('textarea').focus(), 0);
   }
 
   chrome.runtime.onMessage.addListener(message => {

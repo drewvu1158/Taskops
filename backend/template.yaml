@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: TaskOps workflow generation API backed by Amazon Bedrock Converse.
+Description: TaskOps workflow generation API backed by Amazon Bedrock Converse, with a shared workspace in DynamoDB.
 
 Parameters:
   AllowedOrigin:
@@ -20,6 +20,22 @@ Parameters:
     Default: 100
     MinValue: 1
     MaxValue: 10000
+    Description: Maximum Bedrock generations per API key per UTC day. Enforced in Lambda so workspace sync does not consume it.
+  ApiDailyQuota:
+    Type: Number
+    Default: 10000
+    MinValue: 1
+    MaxValue: 1000000
+    Description: API Gateway usage-plan quota for every route, including workspace sync.
+  AlarmEmail:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^[^@\s]+@[^@\s]+\.[^@\s]+$'
+    ConstraintDescription: Leave empty or provide an email address.
+    Description: Optional email for CloudWatch alarm notifications. Leave empty to create alarms without a subscription.
+
+Conditions:
+  HasAlarmEmail: !Not [!Equals [!Ref AlarmEmail, '']]
 
 Resources:
   TaskOpsApi:
@@ -29,20 +45,20 @@ Resources:
       StageName: prod
       EndpointConfiguration: REGIONAL
       Cors:
-        AllowMethods: "'POST,OPTIONS'"
+        AllowMethods: "'GET,PUT,POST,OPTIONS'"
         AllowHeaders: "'Content-Type,X-Api-Key'"
         AllowOrigin: !Sub "'${AllowedOrigin}'"
         MaxAge: "'600'"
       Auth:
         UsagePlan:
           CreateUsagePlan: PER_API
-          Description: Per-client quota and throttle for TaskOps workflow generation.
+          Description: Per-client quota and throttle for TaskOps. Bedrock generations are capped separately in Lambda.
           Quota:
-            Limit: !Ref DailyQuota
+            Limit: !Ref ApiDailyQuota
             Period: DAY
           Throttle:
-            BurstLimit: 2
-            RateLimit: 1
+            BurstLimit: 10
+            RateLimit: 5
           UsagePlanName: !Sub '${AWS::StackName}-usage'
       GatewayResponses:
         DEFAULT_4XX:
@@ -91,8 +107,11 @@ Resources:
       Environment:
         Variables:
           ALLOWED_ORIGIN: !Ref AllowedOrigin
+          DAILY_QUOTA: !Ref DailyQuota
+          JIRA_SECRET_ARN: !Ref JiraSecret
           MAX_OUTPUT_TOKENS: !Ref MaxOutputTokens
           MODEL_ID: !Ref ModelId
+          STATE_TABLE_NAME: !Ref TaskOpsStateTable
       Policies:
         - Statement:
             - Sid: InvokeTaskOpsModel
@@ -102,6 +121,14 @@ Resources:
               Resource:
                 - !Sub 'arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/${ModelId}'
                 - !Sub 'arn:${AWS::Partition}:bedrock:*::foundation-model/amazon.nova-2-lite-v1:0'
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TaskOpsStateTable
+        - Statement:
+            - Sid: ReadJiraSecret
+              Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref JiraSecret
       Events:
         GenerateWorkflow:
           Type: Api
@@ -116,6 +143,30 @@ Resources:
               Required: true
               ValidateBody: true
               ValidateParameters: false
+        GetState:
+          Type: Api
+          Properties:
+            RestApiId: !Ref TaskOpsApi
+            Path: /state
+            Method: get
+            Auth:
+              ApiKeyRequired: true
+        PutState:
+          Type: Api
+          Properties:
+            RestApiId: !Ref TaskOpsApi
+            Path: /state
+            Method: put
+            Auth:
+              ApiKeyRequired: true
+        CreateJiraIssues:
+          Type: Api
+          Properties:
+            RestApiId: !Ref TaskOpsApi
+            Path: /workflow/jira
+            Method: post
+            Auth:
+              ApiKeyRequired: true
 
   WorkflowLogGroup:
     Type: AWS::Logs::LogGroup
@@ -124,6 +175,86 @@ Resources:
     Properties:
       LogGroupName: !Sub '/aws/lambda/${AWS::StackName}-workflow'
       RetentionInDays: 14
+
+  TaskOpsStateTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-state'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: clientId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: clientId
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+      Tags:
+        - Key: Project
+          Value: TaskOps
+
+  JiraSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub '${AWS::StackName}/jira'
+      Description: Jira Cloud credentials for push-only TaskOps export. Replace the generated value with JSON keys baseUrl, email, apiToken, and projectKey.
+      GenerateSecretString:
+        SecretStringTemplate: '{"baseUrl":"","email":"","projectKey":""}'
+        GenerateStringKey: apiToken
+        PasswordLength: 32
+        ExcludePunctuation: true
+
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Condition: HasAlarmEmail
+    Properties:
+      TopicName: !Sub '${AWS::StackName}-alarms'
+      Subscription:
+        - Endpoint: !Ref AlarmEmail
+          Protocol: email
+
+  # AWS Budgets is intentionally not declared here. It is account-scoped and
+  # collides or fails on many existing accounts. See backend/README.md.
+  WorkflowErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-workflow-errors'
+      AlarmDescription: TaskOps workflow Lambda reported at least one error in a 5-minute period.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref WorkflowFunction
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [HasAlarmEmail, [!Ref AlarmTopic], !Ref 'AWS::NoValue']
+      OKActions: !If [HasAlarmEmail, [!Ref AlarmTopic], !Ref 'AWS::NoValue']
+
+  WorkflowThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-workflow-throttles'
+      AlarmDescription: TaskOps workflow Lambda was throttled at least once in a 5-minute period.
+      Namespace: AWS/Lambda
+      MetricName: Throttles
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref WorkflowFunction
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [HasAlarmEmail, [!Ref AlarmTopic], !Ref 'AWS::NoValue']
+      OKActions: !If [HasAlarmEmail, [!Ref AlarmTopic], !Ref 'AWS::NoValue']
 
 Outputs:
   ApiEndpoint:
@@ -138,3 +269,12 @@ Outputs:
     Value: !Ref WorkflowFunction
   ModelId:
     Value: !Ref ModelId
+  StateTableName:
+    Value: !Ref TaskOpsStateTable
+  JiraSecretArn:
+    Description: Replace this secret with Jira baseUrl, email, apiToken, and projectKey before using Send to Jira.
+    Value: !Ref JiraSecret
+  ErrorsAlarmName:
+    Value: !Ref WorkflowErrorsAlarm
+  ThrottlesAlarmName:
+    Value: !Ref WorkflowThrottlesAlarm

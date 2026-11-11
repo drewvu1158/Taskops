@@ -213,7 +213,7 @@
       <button class="nav-button" data-view="analytics"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Analytics</button>
       <button class="nav-button" data-view="settings"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 8.97 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.52-1.03H3v-4h.08A1.7 1.7 0 0 0 4.6 8.97a1.7 1.7 0 0 0-.34-1.88L4.2 7.03 7.03 4.2l.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 10 3.08V3h4v.08a1.7 1.7 0 0 0 1.03 1.52 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06a1.7 1.7 0 0 0-.34 1.88A1.7 1.7 0 0 0 20.92 10H21v4h-.08A1.7 1.7 0 0 0 19.4 15z"/></svg>Settings</button>
     </nav>
-    <div class="sidebar-footer"><div class="storage-note"><span>◉</span><span>Your workspace is saved privately in this browser.</span></div></div>
+    <div class="sidebar-footer"><div class="storage-note"><span>◉</span><span>Your workspace syncs through TaskOps and stays cached in this browser.</span></div></div>
   </aside>
 
   <header class="topbar">
@@ -296,6 +296,28 @@
       }
       return workflow;
     }
+    function configured() {
+      const config=window.TASKOPS_CONFIG||{};
+      return !!(config.apiUrl&&config.apiKey);
+    }
+    function apiRoot() {
+      return String((window.TASKOPS_CONFIG||{}).apiUrl||'').replace(/\/workflow\/?$/,'');
+    }
+    async function apiJson(path, options={}) {
+      const config=window.TASKOPS_CONFIG||{};
+      const response=await fetch(`${apiRoot()}${path}`,{
+        method:options.method||'GET',
+        headers:{'Content-Type':'application/json','X-Api-Key':config.apiKey},
+        body:options.body?JSON.stringify(options.body):undefined
+      });
+      const body=await response.json().catch(()=>({}));
+      if(!response.ok) throw new Error(body?.error?.message||'TaskOps could not sync this workspace.');
+      return body;
+    }
+    async function sendToJira(task) {
+      if(!configured()) throw new Error('TaskOps is not configured. Deploy the backend and reload this page.');
+      return apiJson('/workflow/jira',{method:'POST',body:{title:task.title,description:task.description||task.goal||'',category:task.category,steps:(task.steps||[]).map(step=>step.text||step)}});
+    }
     function buildResourceKit(goal, category) {
       const query=encodeURIComponent(goal.trim());
       const make=(name,type,url,description)=>({id:uid(),name,type,url,description,source:'Suggested'});
@@ -339,6 +361,7 @@
         resources:validResources||buildResourceKit(task.description||task.title||'New task',category)
       };
     }
+    const hadLocal = (() => { try { return localStorage.getItem(STORAGE_KEY)!=null; } catch (_) { return false; } })();
     const seed = [
       {id:'seed-1',title:'Calculus 1 Review',description:'Prepare for the midterm with focused practice and concept review.',category:'study',priority:'high',due:'',created:Date.now()-172800000,tools:['Desmos','Khan Academy','Quizlet'],steps:['List exam topics and formulas','Review limits and derivatives','Complete 15 derivative problems','Practice applications and word problems','Take a timed practice test'].map((text,i)=>({id:'c'+i,text,done:i<3}))},
       {id:'seed-2',title:'Senior Capstone Research',description:'Research AI-assisted workflow systems and prepare a structured literature review.',category:'research',priority:'medium',due:'',created:Date.now()-86400000,tools:['Google Scholar','arXiv','Zotero'],steps:['Define research questions','Collect primary sources','Annotate and group evidence','Build literature review outline','Draft related work section','Review citations and claims'].map((text,i)=>({id:'r'+i,text,done:i<2}))},
@@ -346,6 +369,8 @@
     ];
     const defaultState = {tasks:seed,view:'dashboard',query:'',filter:'all',profile:{name:'TaskOps User'}};
     let state = loadState();
+    let dirty = false;
+    let saveTimer;
     const app = document.getElementById('app');
     const sidebar = document.getElementById('sidebar');
     const search = document.getElementById('globalSearch');
@@ -359,8 +384,44 @@
       initial.tasks=initial.tasks.map(hydrateTask);
       return initial;
     }
-    function saveState() {
+    function persistLocal() {
       localStorage.setItem(STORAGE_KEY,JSON.stringify({tasks:state.tasks,profile:state.profile}));
+    }
+    function saveState() {
+      dirty=true;
+      persistLocal();
+      clearTimeout(saveTimer);
+      saveTimer=setTimeout(()=>{ pushRemote().catch(()=>{}); },500);
+    }
+    async function pushRemote() {
+      if(!configured()) return;
+      const saved=await apiJson('/state',{method:'PUT',body:{tasks:state.tasks,profile:state.profile}});
+      if(typeof saved.revision==='number') state.revision=saved.revision;
+    }
+    async function pullRemote() {
+      if(!configured()) return;
+      try {
+        const remote=await apiJson('/state');
+        if(dirty) return;
+        if(remote.initialized&&Array.isArray(remote.tasks)) {
+          const localProfile=state.profile;
+          state.tasks=remote.tasks.map(hydrateTask);
+          state.profile=remote.profile||localProfile;
+          if(typeof remote.revision==='number') state.revision=remote.revision;
+          const remoteName=state.profile?.name;
+          if(hadLocal&&localProfile?.name&&localProfile.name!=='TaskOps User'&&(!remoteName||remoteName==='TaskOps User')) {
+            state.profile=localProfile;
+            persistLocal(); setAvatar(); render();
+            await pushRemote();
+            return;
+          }
+          persistLocal(); setAvatar(); render();
+          return;
+        }
+        if(hadLocal||state.tasks.length) await pushRemote();
+      } catch (_) {
+        toast('Using the saved copy on this device. Cloud sync is unavailable.');
+      }
     }
     function escapeHtml(value) {
       return String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
@@ -452,20 +513,20 @@
       const totalSteps=state.tasks.reduce((n,t)=>n+t.steps.length,0), doneSteps=state.tasks.reduce((n,t)=>n+t.steps.filter(s=>s.done).length,0);
       const completion=totalSteps?Math.round(doneSteps/totalSteps*100):0;
       const categories=Object.keys(plans).map(cat=>({cat,count:state.tasks.filter(t=>t.category===cat).length})).sort((a,b)=>b.count-a.count);
-      app.innerHTML=`<section class="view"><h1 class="page-title">Analytics</h1><p class="page-subtitle">Progress across tasks saved in this browser.</p><div class="analytics-grid"><div class="metric"><span>Tasks</span><strong>${state.tasks.length}</strong></div><div class="metric"><span>Steps completed</span><strong>${doneSteps}</strong></div><div class="metric"><span>Step completion</span><strong>${completion}%</strong></div><div class="metric"><span>Finished tasks</span><strong>${state.tasks.filter(t=>status(t)==='completed').length}</strong></div></div>
+      app.innerHTML=`<section class="view"><h1 class="page-title">Analytics</h1><p class="page-subtitle">Progress across your synced workspace.</p><div class="analytics-grid"><div class="metric"><span>Tasks</span><strong>${state.tasks.length}</strong></div><div class="metric"><span>Steps completed</span><strong>${doneSteps}</strong></div><div class="metric"><span>Step completion</span><strong>${completion}%</strong></div><div class="metric"><span>Finished tasks</span><strong>${state.tasks.filter(t=>status(t)==='completed').length}</strong></div></div>
         <div class="panel-grid"><section class="panel"><h4>Progress by task</h4>${state.tasks.length?state.tasks.map(t=>`<div style="margin:13px 0"><div class="progress-meta"><span>${escapeHtml(t.title)}</span><span>${progress(t)}%</span></div><div class="progress"><span style="width:${progress(t)}%"></span></div></div>`).join(''):'<div class="empty">No task data yet.</div>'}</section><section class="panel"><h4>Workflow mix</h4>${categories.map(c=>`<div class="suggestion"><span>${plans[c.cat].icon}</span><div><b>${c.cat[0].toUpperCase()+c.cat.slice(1)}</b><small>${c.count} workflow${c.count===1?'':'s'}</small></div></div>`).join('')}</section></div></section>`;
     }
     function settingsView() {
-      app.innerHTML=`<section class="view"><h1 class="page-title">Settings</h1><p class="page-subtitle">Manage your local workspace and data.</p><div class="settings-grid">
+      app.innerHTML=`<section class="view"><h1 class="page-title">Settings</h1><p class="page-subtitle">Profile, backup, and the shared TaskOps workspace. This browser keeps a copy if the API is unavailable.</p><div class="settings-grid">
         <section class="setting"><h4>Profile</h4><p>Your initials appear in the application header.</p><div class="form-group"><label for="profileName">Display name</label><input class="field" id="profileName" value="${escapeHtml(state.profile.name)}" maxlength="50"></div><button class="btn primary" id="saveProfile" style="margin-top:12px">Save profile</button></section>
         <section class="setting"><h4>Export workspace</h4><p>Download all tasks, steps, progress, and preferences as JSON.</p><button class="btn" id="exportData">Download backup</button></section>
         <section class="setting"><h4>Import workspace</h4><p>Restore a TaskOps JSON backup. Imported data replaces the current workspace.</p><input class="field" id="importData" type="file" accept="application/json"></section>
-        <section class="setting"><h4>Delete local data</h4><p>Remove all saved tasks from this browser. This action cannot be undone.</p><button class="btn danger" id="clearData">Delete all data</button></section>
+        <section class="setting"><h4>Delete workspace</h4><p>Remove all saved tasks from this browser and the shared TaskOps workspace. This action cannot be undone.</p><button class="btn danger" id="clearData">Delete all data</button></section>
       </div></section>`;
       document.getElementById('saveProfile').onclick=()=>{ const value=document.getElementById('profileName').value.trim(); if(value){state.profile.name=value;saveState();setAvatar();toast('Profile saved.');} };
       document.getElementById('exportData').onclick=exportData;
       document.getElementById('importData').onchange=importData;
-      document.getElementById('clearData').onclick=()=>{ if(confirm('Delete every saved TaskOps workflow from this browser?')){state.tasks=[];saveState();render();toast('Local workspace cleared.');} };
+      document.getElementById('clearData').onclick=()=>{ if(confirm('Delete every saved TaskOps workflow from this workspace?')){state.tasks=[];saveState();render();toast('Workspace cleared.');} };
     }
     function render() {
       ({dashboard:dashboardView,tasks:tasksView,resources:resourcesView,analytics:analyticsView,settings:settingsView}[state.view]||dashboardView)();
@@ -508,7 +569,7 @@
         <div class="workspace-section-head"><div><h4>Resource hub</h4><p>References, tools, and workspaces collected for this task.</p></div><div class="workspace-section-actions"><button class="btn small ghost" id="refreshResources">Refresh</button><button class="btn small" id="openResources">Open all</button></div></div>
         <div class="workspace-resource-grid" id="workspaceResources"></div>
         <form class="resource-form" id="addResource"><input class="field" name="name" maxlength="80" placeholder="Resource name" required><input class="field" name="url" type="url" placeholder="https://…" required><button class="btn" type="submit">Add resource</button></form>
-        <div class="modal-actions"><button class="btn danger" data-delete-task>Delete task</button><button class="btn primary" data-close>Done</button></div></div></section>`;
+        <div class="modal-actions"><button class="btn danger" data-delete-task>Delete task</button><button class="btn" id="sendJira" type="button">${task.jira?.epicKey?`Jira ${escapeHtml(task.jira.epicKey)}`:'Send to Jira'}</button><button class="btn primary" data-close>Done</button></div></div></section>`;
       document.body.append(backdrop);
       const list=backdrop.querySelector('#stepList');
       const resourceList=backdrop.querySelector('#workspaceResources');
@@ -522,6 +583,21 @@
       backdrop.querySelector('#refreshResources').onclick=()=>{const custom=task.resources.filter(resource=>resource.source==='User');task.resources=[...custom,...buildResourceKit(task.description,task.category)];saveState();renderResources();toast('Resource suggestions refreshed.');};
       backdrop.querySelector('#openResources').onclick=()=>{task.resources.forEach(resource=>window.open(resource.url,'_blank','noopener,noreferrer'));};
       const close=()=>{backdrop.remove();render();};backdrop.querySelectorAll('[data-close]').forEach(b=>b.onclick=close);backdrop.addEventListener('click',e=>{if(e.target===backdrop)close();});
+      backdrop.querySelector('#sendJira').onclick=async()=>{
+        if(task.jira?.epicKey&&!confirm(`This task already has Jira epic ${task.jira.epicKey}. Create another?`)) return;
+        const button=backdrop.querySelector('#sendJira');
+        button.disabled=true; button.textContent='Sending…';
+        try {
+          const result=await sendToJira(task);
+          task.jira={epicKey:result.epic.key,url:result.epic.url};
+          saveState();
+          button.textContent=`Jira ${result.epic.key}`;
+          toast(result.warnings?.length?`Created ${result.epic.key}, but some steps were not added.`:`Created Jira epic ${result.epic.key}.`);
+        } catch(error) {
+          button.textContent=task.jira?.epicKey?`Jira ${task.jira.epicKey}`:'Send to Jira';
+          toast(error.message||'Jira export failed.');
+        } finally { button.disabled=false; }
+      };
       backdrop.querySelector('[data-delete-task]').onclick=()=>{if(confirm(`Delete “${task.title}”?`)){state.tasks=state.tasks.filter(t=>t.id!==task.id);saveState();close();toast('Task deleted.');}};
     }
     function deleteTask(id) { const task=state.tasks.find(t=>t.id===id); if(task&&confirm(`Delete “${task.title}”?`)){state.tasks=state.tasks.filter(t=>t.id!==id);saveState();render();toast('Task deleted.');} }
@@ -534,7 +610,7 @@
     document.getElementById('menuButton').onclick=()=>sidebar.classList.toggle('open');
     search.addEventListener('input',()=>{state.query=search.value;if(state.view==='settings'||state.view==='analytics')setView('tasks');else render();});
     document.addEventListener('keydown',e=>{if(e.key==='Escape'){document.querySelector('.modal-backdrop')?.remove();sidebar.classList.remove('open');}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();search.focus();}});
-    saveState(); setAvatar(); render();
+    persistLocal(); setAvatar(); render(); pullRemote();
   })();
   </script>
 </body>

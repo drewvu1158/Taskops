@@ -2,7 +2,9 @@ param(
   [string]$Region = 'us-east-1',
   [string]$StackName = 'taskops-bedrock',
   [string]$AllowedOrigin = '*',
-  [int]$DailyQuota = 100
+  [int]$DailyQuota = 100,
+  [int]$ApiDailyQuota = 10000,
+  [string]$AlarmEmail = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -47,7 +49,7 @@ try {
     --region $Region `
     --capabilities CAPABILITY_IAM `
     --no-fail-on-empty-changeset `
-    --parameter-overrides "AllowedOrigin=$AllowedOrigin" "DailyQuota=$DailyQuota"
+    --parameter-overrides "AllowedOrigin=$AllowedOrigin" "DailyQuota=$DailyQuota" "ApiDailyQuota=$ApiDailyQuota" "AlarmEmail=$AlarmEmail" --tags Project=TaskOps
   if ($LASTEXITCODE -ne 0) { throw 'CloudFormation deployment failed.' }
 
   $Endpoint = & $Aws cloudformation describe-stacks --stack-name $StackName --region $Region --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" --output text
