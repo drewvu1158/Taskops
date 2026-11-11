@@ -1,19 +1,21 @@
 # TaskOps Bedrock backend
 
-A serverless backend: API Gateway REST API → Lambda → Amazon Bedrock Converse using `us.amazon.nova-2-lite-v1:0` in `us-east-1`. The same Lambda stores the shared dashboard/extension workspace in DynamoDB and can push a workflow to Jira.
+A serverless backend: API Gateway REST API → Lambda → Amazon Bedrock Converse using `us.amazon.nova-2-lite-v1:0` in `us-east-1`. The same Lambda stores a per-user dashboard/extension workspace in DynamoDB and can push a workflow to Jira. End users sign in with Amazon Cognito; there is no anonymous mode.
 
 ```text
 Dashboard or extension → API Gateway → Lambda → Bedrock
-                                         ├─ DynamoDB workspace
-                                         └─ Secrets Manager → Jira Cloud (push only)
+                            │            ├─ DynamoDB per-user workspace
+                            ▼            └─ Secrets Manager → Jira Cloud (push only)
+                  Cognito user pool (JWT)
 ```
 
 ## Security and limits
 
 - Lambda receives Bedrock, DynamoDB, and Secrets Manager access through its IAM execution role; no AWS credentials are sent to either frontend.
-- `POST /workflow`, `GET/PUT /state`, and `POST /workflow/jira` require an API Gateway key. The key identifies this local client and is the workspace partition key. It is not end-user identity authentication. Use Cognito/OIDC before serving TaskOps to untrusted users.
+- `POST /workflow`, `POST /workflow/adjust`, `GET/PUT /state`, and `POST /workflow/jira` require both the API Gateway key and a Cognito ID token (`Authorization: Bearer …`). The authorizer validates the JWT at the edge; Lambda uses the token's `sub` claim as the DynamoDB partition key, so every user's workspace is isolated.
+- The deploy creates a Cognito user pool (`taskops-bedrock-users`) and a public app client (`taskops-bedrock-web`) with `ALLOW_USER_PASSWORD_AUTH` and `ALLOW_REFRESH_TOKEN_AUTH`. Passwords are managed by Cognito; TaskOps never sees or stores them. Confirmation uses the emailed code flow.
 - The usage plan allows 5 requests/second, burst 10, and 10,000 API calls/day by default so workspace sync is not blocked by the generation cap.
-- Bedrock generation is capped separately at 100 workflows per API key per UTC day. That counter lives in DynamoDB and does not include state sync.
+- Bedrock generation is capped separately at 100 workflows per Cognito user per UTC day. That counter lives in DynamoDB and does not include state sync. The same per-user cap applies to AI plan adjustments via `POST /workflow/adjust`.
 - Lambda reserved concurrency is 2. API Gateway and Lambda both validate workflow requests. Goals are 3-600 characters.
 - Bedrock output is capped at 1,200 tokens and then validated into 5-9 steps before it reaches the browser.
 - CORS defaults to `*` because the dashboard currently runs as a local file and the extension has a `chrome-extension://` origin. Set a concrete origin after hosting the dashboard.
@@ -23,7 +25,7 @@ The API key is necessarily visible to a browser client. It is written only to gi
 
 ## Deploy
 
-Requires Node.js 22+, AWS CLI v2, and an authenticated AWS account with CloudFormation, IAM, Lambda, API Gateway, S3, Bedrock, DynamoDB, CloudWatch, Secrets Manager, and SNS permissions.
+Requires Node.js 22+, AWS CLI v2, and an authenticated AWS account with CloudFormation, IAM, Lambda, API Gateway, S3, Bedrock, DynamoDB, CloudWatch, Secrets Manager, SNS, and Cognito permissions.
 
 ```powershell
 aws login --region us-east-1
@@ -36,7 +38,7 @@ For access-key or federated shell credentials, use the corresponding AWS CLI aut
 aws sts get-caller-identity
 ```
 
-The script installs production dependencies, uploads the Lambda bundle to a private deployment bucket, deploys the `taskops-bedrock` CloudFormation stack, and writes these git-ignored browser configs:
+The script installs production dependencies, uploads the Lambda bundle to a private deployment bucket, deploys the `taskops-bedrock` CloudFormation stack (including the Cognito user pool and app client), and writes these git-ignored browser configs. Both now include the Cognito `region`, `userPoolId`, and `clientId`:
 
 - `../taskops-config.js`
 - `../taskops-extension/config.js`
@@ -49,7 +51,7 @@ cd backend
 bash deploy-cloudshell.sh
 ```
 
-Download the generated `deployment-output.json`, use its values in copies of `taskops-config.example.js` and `taskops-extension/config.example.js`, then delete the downloaded JSON. It contains the client API key.
+Download the generated `deployment-output.json`, use its values (`endpoint`, `apiKey`, `cognitoRegion`, `userPoolId`, `userPoolClientId`) in copies of `taskops-config.example.js` and `taskops-extension/config.example.js`, then delete the downloaded JSON. It contains the client API key.
 
 Deploy with a hosted dashboard origin and a lower daily quota when needed:
 
@@ -61,13 +63,27 @@ Deploy with a hosted dashboard origin and a lower daily quota when needed:
 
 ## Workspace sync
 
-`GET /state` and `PUT /state` store one workspace per API key:
+`GET /state` and `PUT /state` store one workspace per Cognito user:
 
 ```json
 { "tasks": [], "profile": { "name": "TaskOps User" }, "revision": 1 }
 ```
 
+The DynamoDB partition key (`clientId`) holds the Cognito `sub` claim once a request is authenticated. Unauthenticated requests never reach Lambda. Browser caches are also scoped per user (`taskops.workspace.v1.<sub>` in `localStorage`, `taskops.overlay.tasks.v1.<sub>` in `chrome.storage.local`).
+
 The dashboard and extension treat this item as the source of truth and keep `localStorage` or `chrome.storage.local` as a cache when the API is unreachable. A missing remote workspace is filled from the local cache on the next successful load.
+
+Note: workspaces stored before Cognito was added live under the old API-key partition value and are not visible to any signed-in user. They remain in the table untouched; copy the item to the user's `sub` key if you want to migrate it.
+
+## Adjusting an existing plan with AI
+
+`POST /workflow/adjust` revises an existing workflow to satisfy an instruction (for example, “make it doable in under 2 hours”). The request carries the task's title, category, current steps, and the instruction; the response replaces the plan rather than appending to it:
+
+```json
+{ "plan": { "steps": ["..."], "tools": ["..."] } }
+```
+
+Model output is validated the same way as workflow generation (5–9 ordered steps, no duplicates, 0–5 tools). Each adjustment consumes one unit of the per-user daily generation cap. In the dashboard this lives under **Adjust plan with AI** inside the task workspace; applying a plan resets step completion for review.
 
 ## Jira export
 

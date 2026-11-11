@@ -7,7 +7,7 @@ param(
   [string]$AlarmEmail = ''
 )
 
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Continue' # Native aws.exe stderr progress output must not terminate the script; failures are caught via $LASTEXITCODE below.
 $AwsCommand = Get-Command aws -ErrorAction SilentlyContinue
 $Aws = if ($AwsCommand) { $AwsCommand.Source } else { 'C:\Program Files\Amazon\AWSCLIV2\aws.exe' }
 if (-not (Test-Path $Aws)) { throw 'AWS CLI v2 is required.' }
@@ -36,29 +36,34 @@ try {
     Pop-Location
   }
 
+  $PackageLog = Join-Path $PSScriptRoot 'deploy-package.log'
   & $Aws cloudformation package `
     --template-file template.yaml `
     --s3-bucket $Bucket `
     --output-template-file packaged.yaml `
-    --region $Region | Out-Null
-  if ($LASTEXITCODE -ne 0) { throw 'CloudFormation packaging failed.' }
+    --region $Region 2> $PackageLog | Out-Null
+  if ($LASTEXITCODE -ne 0) { Get-Content $PackageLog | Write-Error; throw 'CloudFormation packaging failed.' }
 
+  $DeployLog = Join-Path $PSScriptRoot 'deploy.log'
   & $Aws cloudformation deploy `
     --template-file packaged.yaml `
     --stack-name $StackName `
     --region $Region `
     --capabilities CAPABILITY_IAM `
     --no-fail-on-empty-changeset `
-    --parameter-overrides "AllowedOrigin=$AllowedOrigin" "DailyQuota=$DailyQuota" "ApiDailyQuota=$ApiDailyQuota" "AlarmEmail=$AlarmEmail" --tags Project=TaskOps
-  if ($LASTEXITCODE -ne 0) { throw 'CloudFormation deployment failed.' }
+    --parameter-overrides "AllowedOrigin=$AllowedOrigin" "DailyQuota=$DailyQuota" "ApiDailyQuota=$ApiDailyQuota" "AlarmEmail=$AlarmEmail" --tags Project=TaskOps 2> $DeployLog
+  if ($LASTEXITCODE -ne 0) { Get-Content $DeployLog | Write-Error; throw 'CloudFormation deployment failed.' }
 
   $Endpoint = & $Aws cloudformation describe-stacks --stack-name $StackName --region $Region --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" --output text
   $ApiKeyId = & $Aws cloudformation describe-stacks --stack-name $StackName --region $Region --query "Stacks[0].Outputs[?OutputKey=='ApiKeyId'].OutputValue" --output text
   $ApiKey = & $Aws apigateway get-api-key --api-key $ApiKeyId --include-value --region $Region --query value --output text
   if ($LASTEXITCODE -ne 0) { throw 'Unable to retrieve the API key.' }
+  $UserPoolId = & $Aws cloudformation describe-stacks --stack-name $StackName --region $Region --query "Stacks[0].Outputs[?OutputKey=='UserPoolId'].OutputValue" --output text
+  $UserPoolClientId = & $Aws cloudformation describe-stacks --stack-name $StackName --region $Region --query "Stacks[0].Outputs[?OutputKey=='UserPoolClientId'].OutputValue" --output text
+  if (-not $UserPoolId -or -not $UserPoolClientId) { throw 'Unable to read the Cognito outputs from the stack.' }
 
-  $DashboardConfig = "window.TASKOPS_CONFIG = Object.freeze({ apiUrl: '$Endpoint', apiKey: '$ApiKey' });`n"
-  $ExtensionConfig = "globalThis.TASKOPS_CONFIG = Object.freeze({ apiUrl: '$Endpoint', apiKey: '$ApiKey' });`n"
+  $DashboardConfig = "window.TASKOPS_CONFIG = Object.freeze({ apiUrl: '$Endpoint', apiKey: '$ApiKey', cognito: { region: '$Region', userPoolId: '$UserPoolId', clientId: '$UserPoolClientId' } });`n"
+  $ExtensionConfig = "globalThis.TASKOPS_CONFIG = Object.freeze({ apiUrl: '$Endpoint', apiKey: '$ApiKey', cognito: { region: '$Region', userPoolId: '$UserPoolId', clientId: '$UserPoolClientId' } });`n"
   Set-Content -Path (Join-Path $PSScriptRoot '..\taskops-config.js') -Value $DashboardConfig -Encoding utf8 -NoNewline
   Set-Content -Path (Join-Path $PSScriptRoot '..\taskops-extension\config.js') -Value $ExtensionConfig -Encoding utf8 -NoNewline
 

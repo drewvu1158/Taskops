@@ -4,7 +4,7 @@
   "version": "1.2.0",
   "description": "Create and manage guided workflows without leaving the current webpage.",
   "permissions": ["storage", "activeTab"],
-  "host_permissions": ["https://*.execute-api.us-east-1.amazonaws.com/*"],
+  "host_permissions": ["https://*.execute-api.us-east-1.amazonaws.com/*", "https://cognito-idp.*.amazonaws.com/*"],
   "background": {
     "service_worker": "background.js"
   },

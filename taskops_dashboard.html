@@ -179,7 +179,49 @@
     .toast-region { position:fixed; right:20px; bottom:20px; z-index:150; display:grid; gap:8px; }
     .toast { width:min(340px,calc(100vw - 40px)); padding:11px 13px; border:1px solid #364355; border-radius:8px; color:#e6eaf0; background:#1b222c; box-shadow:var(--shadow); animation:toastIn .18s ease; }
     @keyframes toastIn { from{opacity:0;transform:translateY(6px)} }
+    .board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}
+    .board-column{display:flex;flex-direction:column;gap:10px;min-height:150px;padding:12px;border:1px solid var(--line);border-radius:10px;background:#12171e;transition:border-color .15s,background .15s}
+    .board-column.drag-over{border-color:#aabaff;background:#151d27}
+    .board-head{display:flex;align-items:center;justify-content:space-between;padding:0 2px}
+    .board-head h4{margin:0;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+    .board-count{color:var(--muted);font-size:11px;font-weight:600}
+    .board-list{display:flex;flex-direction:column;gap:10px;min-height:40px}
+    .board-empty{padding:18px 10px;text-align:center;color:#5f6874;font-size:11px;border:1px dashed #2c3540;border-radius:8px}
+    .board-card{padding:11px 12px;border:1px solid var(--line);border-radius:9px;background:var(--surface);cursor:grab;transition:border-color .15s}
+    .board-card:hover{border-color:#3a4656}
+    .board-card:active{cursor:grabbing}
+    .board-card.dragging{opacity:.5}
+    .board-card h4{margin:0 0 3px;font-size:13px;font-weight:650}
+    .board-card p{margin:0;color:var(--muted);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .board-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:9px;font-size:10px;color:var(--muted)}
+    .board-card .progress{margin:8px 0 0;height:4px}
+    .adjust-plan{margin-top:4px}
+    .adjust-row{display:flex;gap:9px;margin-top:10px}
+    .adjust-row .field{flex:1;min-width:0}
+    @media (max-width:760px){ .board{grid-template-columns:1fr} }
     .form-error { min-height:18px; margin:12px 0 -7px; color:var(--red); font-size:11px; text-align:right; }
+    .auth-screen { position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center; padding:22px; background:radial-gradient(1100px 500px at 50% -10%,#1b2432 0%,var(--bg) 60%); }
+    .auth-screen[hidden] { display:none; }
+    .auth-card { width:min(410px,100%); max-height:94vh; overflow:auto; padding:28px 26px; border:1px solid #323b48; border-radius:14px; background:#141a22; box-shadow:var(--shadow); }
+    .auth-brand { display:flex; align-items:center; gap:10px; margin-bottom:18px; }
+    .auth-brand .brand-mark { margin:0; }
+    .auth-brand h1 { margin:0; font-size:19px; }
+    .auth-brand p { margin:0; color:#7e8897; font-size:9px; font-weight:600; text-transform:uppercase; letter-spacing:.08em; }
+    .auth-lead { margin:0 0 16px; color:var(--muted); font-size:12px; }
+    .auth-tabs { display:grid; grid-template-columns:1fr 1fr; gap:4px; padding:4px; margin-bottom:16px; border:1px solid var(--line); border-radius:9px; background:#10151d; }
+    .auth-tab { padding:8px; border:0; border-radius:7px; color:var(--muted); background:transparent; font-weight:600; cursor:pointer; }
+    .auth-tab.active { color:#111722; background:#aabaff; }
+    .auth-form { display:grid; gap:11px; }
+    .auth-form[hidden] { display:none; }
+    .auth-form .field { width:100%; box-sizing:border-box; }
+    .auth-form label { font-size:11px; color:var(--muted); margin-bottom:4px; display:block; }
+    .auth-error { min-height:16px; margin:0; color:var(--red); font-size:11px; }
+    .auth-info { min-height:16px; margin:0; color:#8fd3a8; font-size:11px; }
+    .auth-links { display:flex; justify-content:space-between; margin-top:2px; }
+    .link-button { border:0; padding:0; color:#aabaff; background:transparent; font-size:11px; font-weight:600; cursor:pointer; text-decoration:underline; }
+    .auth-foot { margin:16px 0 0; color:#5f6874; font-size:10px; text-align:center; }
+    .signout-row { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .signout-row span { color:var(--muted); font-size:11px; overflow:hidden; text-overflow:ellipsis; }
     .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
     @media (max-width:1050px) { .task-grid,.resource-grid{grid-template-columns:repeat(2,1fr)} .analytics-grid{grid-template-columns:repeat(2,1fr)} }
     @media (max-width:760px) {
@@ -204,11 +246,66 @@
   </style>
 </head>
 <body>
+  <div class="auth-screen" id="authScreen" hidden>
+    <section class="auth-card" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+      <div class="auth-brand"><div class="brand-mark">✓</div><div><h1 id="authTitle">TaskOps</h1><p>Account</p></div></div>
+      <p class="auth-lead">Sign in to sync your tasks and profile privately with AWS. Your data stays scoped to your account.</p>
+      <div class="auth-tabs" role="tablist" aria-label="Sign in or create account">
+        <button class="auth-tab active" id="tabSignIn" type="button" role="tab" aria-selected="true">Sign in</button>
+        <button class="auth-tab" id="tabSignUp" type="button" role="tab" aria-selected="false">Create account</button>
+      </div>
+
+      <form class="auth-form" id="signInForm" novalidate>
+        <div><label for="signInEmail">Email</label><input class="field" id="signInEmail" name="email" type="email" autocomplete="email" required placeholder="you@example.com"></div>
+        <div><label for="signInPassword">Password</label><input class="field" id="signInPassword" name="password" type="password" autocomplete="current-password" required placeholder="Your password"></div>
+        <p class="auth-error" id="signInError" role="alert"></p>
+        <button class="btn primary" id="signInSubmit" type="submit">Sign in</button>
+        <div class="auth-links"><button class="link-button" id="showForgot" type="button">Forgot password?</button></div>
+      </form>
+
+      <form class="auth-form" id="signUpForm" novalidate hidden>
+        <div><label for="signUpEmail">Email</label><input class="field" id="signUpEmail" name="email" type="email" autocomplete="email" required placeholder="you@example.com"></div>
+        <div><label for="signUpPassword">Password</label><input class="field" id="signUpPassword" name="password" type="password" autocomplete="new-password" required minlength="8" placeholder="8+ characters, with upper, lower & number"></div>
+        <p class="auth-error" id="signUpError" role="alert"></p>
+        <button class="btn primary" id="signUpSubmit" type="submit">Create account</button>
+      </form>
+
+      <form class="auth-form" id="confirmForm" novalidate hidden>
+        <p class="auth-lead" style="margin:0">We emailed a verification code to <b id="confirmEmail"></b>. Enter it below to finish creating your account.</p>
+        <div><label for="confirmCode">Verification code</label><input class="field" id="confirmCode" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" required maxlength="6" placeholder="123456"></div>
+        <p class="auth-error" id="confirmError" role="alert"></p>
+        <p class="auth-info" id="confirmInfo" role="status"></p>
+        <button class="btn primary" id="confirmSubmit" type="submit">Confirm email</button>
+        <div class="auth-links"><button class="link-button" id="resendCode" type="button">Resend code</button><button class="link-button" id="confirmBackToSignIn" type="button">Back to sign in</button></div>
+      </form>
+
+      <form class="auth-form" id="forgotForm" novalidate hidden>
+        <p class="auth-lead" style="margin:0">Enter your email and we will send a password reset code.</p>
+        <div><label for="forgotEmail">Email</label><input class="field" id="forgotEmail" name="email" type="email" autocomplete="email" required placeholder="you@example.com"></div>
+        <p class="auth-error" id="forgotError" role="alert"></p>
+        <button class="btn primary" id="forgotSubmit" type="submit">Send reset code</button>
+        <div class="auth-links"><button class="link-button" id="forgotBackToSignIn" type="button">Back to sign in</button></div>
+      </form>
+
+      <form class="auth-form" id="resetForm" novalidate hidden>
+        <p class="auth-lead" style="margin:0">Enter the code we emailed to <b id="resetEmail"></b> and choose a new password.</p>
+        <div><label for="resetCode">Reset code</label><input class="field" id="resetCode" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" required maxlength="6" placeholder="123456"></div>
+        <div><label for="resetPassword">New password</label><input class="field" id="resetPassword" name="password" type="password" autocomplete="new-password" required minlength="8" placeholder="8+ characters, with upper, lower & number"></div>
+        <p class="auth-error" id="resetError" role="alert"></p>
+        <button class="btn primary" id="resetSubmit" type="submit">Reset password</button>
+        <div class="auth-links"><button class="link-button" id="resetBackToSignIn" type="button">Back to sign in</button></div>
+      </form>
+
+      <p class="auth-foot">Secured by Amazon Cognito · Data stored in Amazon DynamoDB</p>
+    </section>
+  </div>
+
   <aside class="sidebar" id="sidebar">
     <div class="brand"><div class="brand-mark">✓</div><h1>TaskOps</h1><p>Beta</p></div>
     <nav class="nav" aria-label="Primary navigation">
       <button class="nav-button active" data-view="dashboard"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Overview</button>
       <button class="nav-button" data-view="tasks"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><path d="m3 6 1 1 2-2M3 12l1 1 2-2M3 18l1 1 2-2"/></svg>Tasks</button>
+      <button class="nav-button" data-view="board"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="5" height="16" rx="1.2"/><rect x="9.5" y="4" width="5" height="10" rx="1.2"/><rect x="16" y="4" width="5" height="13" rx="1.2"/></svg>Board</button>
       <button class="nav-button" data-view="resources"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 5.5v16M8 7h8M8 11h7"/></svg>Resources</button>
       <button class="nav-button" data-view="analytics"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Analytics</button>
       <button class="nav-button" data-view="settings"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 8.97 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.52-1.03H3v-4h.08A1.7 1.7 0 0 0 4.6 8.97a1.7 1.7 0 0 0-.34-1.88L4.2 7.03 7.03 4.2l.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 10 3.08V3h4v.08a1.7 1.7 0 0 0 1.03 1.52 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06a1.7 1.7 0 0 0-.34 1.88A1.7 1.7 0 0 0 20.92 10H21v4h-.08A1.7 1.7 0 0 0 19.4 15z"/></svg>Settings</button>
@@ -220,7 +317,7 @@
     <button class="mobile-menu" id="menuButton" aria-label="Open navigation">☰</button>
     <h2 id="topTitle">Overview</h2>
     <div class="search"><span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></span><label class="sr-only" for="globalSearch">Search tasks</label><input id="globalSearch" type="search" placeholder="Search your workspace" autocomplete="off"></div>
-    <div class="top-actions"><button class="btn primary" data-create>New task</button><div class="avatar" id="avatar">TO</div></div>
+    <div class="top-actions"><button class="btn primary" data-create>New task</button><button class="btn ghost" id="topSignOut" hidden>Sign out</button><div class="avatar" id="avatar">TO</div></div>
   </header>
 
   <main><div class="content" id="app" aria-live="polite"></div></main>
@@ -250,6 +347,7 @@
   (() => {
     'use strict';
     const STORAGE_KEY = 'taskops.workspace.v1';
+    function storageKey() { const s = readAuth(); return s?.sub ? `${STORAGE_KEY}.${s.sub}` : STORAGE_KEY; }
     const plans = {
       research: {
         tools:['Google Scholar','Zotero','Google Docs','arXiv'], icon:'R', label:'Research',
@@ -268,6 +366,243 @@
         steps:['Define the outcome and completion criteria','List constraints, people, and resources','Break the outcome into concrete milestones','Estimate and order the work','Schedule milestones and focus blocks','Review progress and remove blockers','Close the plan and capture follow-up actions']
       }
     };
+    const AUTH_KEY = 'taskops.auth.v1';
+    function cognitoConfig() {
+      const c = (window.TASKOPS_CONFIG || {}).cognito;
+      return c && c.userPoolId && c.clientId && c.region ? c : null;
+    }
+    async function cognitoRequest(action, payload) {
+      const cfg = cognitoConfig();
+      if (!cfg) throw new Error('Sign-in is not configured. Re-run the backend deploy to enable Amazon Cognito.');
+      let response;
+      try {
+        response = await fetch(`https://cognito-idp.${cfg.region}.amazonaws.com/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-amz-json-1.1', 'X-Amz-Target': `AWSCognitoIdentityServiceProviderService.${action}` },
+          body: JSON.stringify(payload)
+        });
+      } catch (_) {
+        throw new Error('TaskOps could not reach Amazon Cognito. Check your connection and try again.');
+      }
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const code = String(body?.__type || '').split('#').pop();
+        const messages = {
+          IncorrectUsernamePasswordException: 'Incorrect email or password.',
+          UserNotFoundException: 'Incorrect email or password.',
+          NotAuthorizedException: 'Incorrect email or password, or your session expired.',
+          UserNotConfirmedException: 'Please confirm your email before signing in.',
+          UsernameExistsException: 'An account with that email already exists.',
+          InvalidPasswordException: 'Password must be at least 8 characters and include an uppercase letter, a lowercase letter, and a number.',
+          InvalidParameterException: 'Check the details and try again.',
+          CodeMismatchException: 'That code is not valid. Check the email and try again.',
+          ExpiredCodeException: 'That code has expired. Request a new one.',
+          LimitExceededException: 'Too many attempts. Wait a moment and try again.',
+          TooManyRequestsException: 'Too many attempts. Wait a moment and try again.',
+          PasswordResetRequiredException: 'You need to reset your password before signing in.'
+        };
+        const error = new Error(messages[code] || body?.message || 'Amazon Cognito rejected the request.');
+        error.code = code;
+        throw error;
+      }
+      return body;
+    }
+    function decodeJwtSub(token) {
+      try {
+        const part = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        const json = decodeURIComponent(atob(part).split('').map(ch => '%' + ('00' + ch.charCodeAt(0).toString(16)).slice(-2)).join(''));
+        return JSON.parse(json)?.sub || null;
+      } catch (_) { return null; }
+    }
+    function readAuth() { try { const s = JSON.parse(localStorage.getItem(AUTH_KEY)); return s && s.idToken && s.sub ? s : null; } catch (_) { return null; } }
+    function writeAuth(session) { try { localStorage.setItem(AUTH_KEY, JSON.stringify(session)); } catch (_) {} }
+    function clearAuth() { try { localStorage.removeItem(AUTH_KEY); } catch (_) {} }
+    function sessionFromResult(email, result, previousRefreshToken) {
+      const idToken = result?.AuthenticationResult?.IdToken;
+      if (!idToken) return null;
+      return {
+        email,
+        sub: decodeJwtSub(idToken),
+        idToken,
+        refreshToken: result?.AuthenticationResult?.RefreshToken || previousRefreshToken,
+        expiresAt: Date.now() + ((result?.AuthenticationResult?.ExpiresIn || 3600) * 1000)
+      };
+    }
+    async function establishSession(email, password) {
+      const cfg = cognitoConfig();
+      const result = await cognitoRequest('InitiateAuth', { AuthFlow: 'USER_PASSWORD_AUTH', ClientId: cfg.clientId, AuthParameters: { USERNAME: email, PASSWORD: password } });
+      const session = sessionFromResult(email, result, null);
+      if (!session) throw new Error('Amazon Cognito did not return a session.');
+      writeAuth(session);
+      return session;
+    }
+    async function refreshSession() {
+      const cfg = cognitoConfig();
+      const current = readAuth();
+      if (!cfg || !current?.refreshToken) return null;
+      try {
+        const result = await cognitoRequest('InitiateAuth', { AuthFlow: 'REFRESH_TOKEN_AUTH', ClientId: cfg.clientId, AuthParameters: { REFRESH_TOKEN: current.refreshToken } });
+        const session = sessionFromResult(current.email, result, current.refreshToken);
+        if (!session) return null;
+        writeAuth(session);
+        return session;
+      } catch (_) {
+        clearAuth();
+        return null;
+      }
+    }
+    async function currentSession() {
+      const current = readAuth();
+      if (!current) return null;
+      if (Date.now() > current.expiresAt - 60000) return refreshSession();
+      return current;
+    }
+    async function authHeaders() {
+      const session = await currentSession();
+      return session?.idToken ? { Authorization: `Bearer ${session.idToken}` } : {};
+    }
+    function setSignOutVisible(visible) { document.getElementById('topSignOut').hidden = !visible; }
+    function handleUnauthorized() {
+      clearAuth();
+      setSignOutVisible(false);
+      if (cognitoConfig()) {
+        showAuthScreen('signIn');
+        toast('Your session expired. Sign in again to keep syncing.');
+      } else {
+        toast('Cloud sign-in needs the backend redeployed. Continuing with this device only.');
+      }
+    }
+    const authScreen = document.getElementById('authScreen');
+    const authPanels = { signIn: 'signInForm', signUp: 'signUpForm', confirm: 'confirmForm', forgot: 'forgotForm', reset: 'resetForm' };
+    function setAuthMode(mode) {
+      for (const key of Object.keys(authPanels)) document.getElementById(authPanels[key]).hidden = key !== mode;
+      const onSignIn = mode === 'signIn';
+      const onSignUp = mode === 'signUp';
+      document.getElementById('tabSignIn').classList.toggle('active', onSignIn);
+      document.getElementById('tabSignUp').classList.toggle('active', onSignUp);
+      document.getElementById('tabSignIn').setAttribute('aria-selected', String(onSignIn));
+      document.getElementById('tabSignUp').setAttribute('aria-selected', String(onSignUp));
+    }
+    function showAuthScreen(mode = 'signIn') { authScreen.hidden = false; setAuthMode(mode); }
+    function hideAuthScreen() { authScreen.hidden = true; }
+    function signOut() {
+      clearAuth();
+      state = null;
+      setSignOutVisible(false);
+      document.getElementById('avatar').textContent = 'TO';
+      showAuthScreen('signIn');
+    }
+    function bindAuth() {
+      const $ = id => document.getElementById(id);
+      let pendingEmail = '';
+      const setBusy = (id, busy, label) => { const btn = $(id); btn.disabled = busy; btn.textContent = busy ? 'Please wait…' : label; };
+      $('tabSignIn').addEventListener('click', () => setAuthMode('signIn'));
+      $('tabSignUp').addEventListener('click', () => setAuthMode('signUp'));
+      $('showForgot').addEventListener('click', () => setAuthMode('forgot'));
+      $('forgotBackToSignIn').addEventListener('click', () => setAuthMode('signIn'));
+      $('resetBackToSignIn').addEventListener('click', () => setAuthMode('signIn'));
+      $('confirmBackToSignIn').addEventListener('click', () => setAuthMode('signIn'));
+      $('topSignOut').addEventListener('click', signOut);
+      $('signInForm').addEventListener('submit', async event => {
+        event.preventDefault();
+        const email = $('signInEmail').value.trim().toLowerCase();
+        const password = $('signInPassword').value;
+        $('signInError').textContent = '';
+        setBusy('signInSubmit', true, 'Sign in');
+        try {
+          await establishSession(email, password);
+          hideAuthScreen();
+          bootApp();
+        } catch (error) {
+          if (error.code === 'UserNotConfirmedException') { pendingEmail = email; $('confirmEmail').textContent = email; setAuthMode('confirm'); return; }
+          $('signInError').textContent = error.message;
+        } finally {
+          setBusy('signInSubmit', false, 'Sign in');
+        }
+      });
+      $('signUpForm').addEventListener('submit', async event => {
+        event.preventDefault();
+        const cfg = cognitoConfig();
+        const email = $('signUpEmail').value.trim().toLowerCase();
+        const password = $('signUpPassword').value;
+        $('signUpError').textContent = '';
+        setBusy('signUpSubmit', true, 'Create account');
+        try {
+          await cognitoRequest('SignUp', { ClientId: cfg.clientId, Username: email, Password: password, UserAttributes: [{ Name: 'email', Value: email }] });
+          pendingEmail = email;
+          $('confirmEmail').textContent = email;
+          $('confirmInfo').textContent = 'Code sent. Check your inbox (and spam folder).';
+          $('confirmError').textContent = '';
+          setAuthMode('confirm');
+        } catch (error) {
+          $('signUpError').textContent = error.message;
+        } finally {
+          setBusy('signUpSubmit', false, 'Create account');
+        }
+      });
+      $('confirmForm').addEventListener('submit', async event => {
+        event.preventDefault();
+        const cfg = cognitoConfig();
+        const code = $('confirmCode').value.trim();
+        $('confirmError').textContent = '';
+        setBusy('confirmSubmit', true, 'Confirm email');
+        try {
+          await cognitoRequest('ConfirmSignUp', { ClientId: cfg.clientId, Username: pendingEmail, ConfirmationCode: code });
+          $('signInEmail').value = pendingEmail;
+          setAuthMode('signIn');
+          toast('Email confirmed. Sign in to continue.');
+        } catch (error) {
+          $('confirmError').textContent = error.message;
+        } finally {
+          setBusy('confirmSubmit', false, 'Confirm email');
+        }
+      });
+      $('resendCode').addEventListener('click', async () => {
+        const cfg = cognitoConfig();
+        $('confirmError').textContent = '';
+        try {
+          await cognitoRequest('ResendConfirmationCode', { ClientId: cfg.clientId, Username: pendingEmail });
+          $('confirmInfo').textContent = 'A new code is on its way.';
+        } catch (error) {
+          $('confirmError').textContent = error.message;
+        }
+      });
+      $('forgotForm').addEventListener('submit', async event => {
+        event.preventDefault();
+        const cfg = cognitoConfig();
+        const email = $('forgotEmail').value.trim().toLowerCase();
+        $('forgotError').textContent = '';
+        setBusy('forgotSubmit', true, 'Send reset code');
+        try {
+          await cognitoRequest('ForgotPassword', { ClientId: cfg.clientId, Username: email });
+          pendingEmail = email;
+          $('resetEmail').textContent = email;
+          setAuthMode('reset');
+        } catch (error) {
+          $('forgotError').textContent = error.message;
+        } finally {
+          setBusy('forgotSubmit', false, 'Send reset code');
+        }
+      });
+      $('resetForm').addEventListener('submit', async event => {
+        event.preventDefault();
+        const cfg = cognitoConfig();
+        const code = $('resetCode').value.trim();
+        const password = $('resetPassword').value;
+        $('resetError').textContent = '';
+        setBusy('resetSubmit', true, 'Reset password');
+        try {
+          await cognitoRequest('ConfirmForgotPassword', { ClientId: cfg.clientId, Username: pendingEmail, ConfirmationCode: code, Password: password });
+          $('signInEmail').value = pendingEmail;
+          setAuthMode('signIn');
+          toast('Password reset. Sign in with your new password.');
+        } catch (error) {
+          $('resetError').textContent = error.message;
+        } finally {
+          setBusy('resetSubmit', false, 'Reset password');
+        }
+      });
+    }
     async function generateWorkflow(goal, category, signal) {
       const config=window.TASKOPS_CONFIG||{};
       if(!config.apiUrl||!config.apiKey) throw new Error('TaskOps AI is not configured. Deploy the backend and reload this page.');
@@ -275,7 +610,7 @@
       try {
         response=await fetch(config.apiUrl,{
           method:'POST',
-          headers:{'Content-Type':'application/json','X-Api-Key':config.apiKey},
+          headers:{'Content-Type':'application/json','X-Api-Key':config.apiKey,...(await authHeaders())},
           body:JSON.stringify({goal,category}),
           signal
         });
@@ -286,6 +621,7 @@
       const body=await response.json().catch(()=>({}));
       if(!response.ok) {
         const message=body?.error?.message;
+        if(response.status===401) { handleUnauthorized(); throw new Error('Your session expired. Sign in again.'); }
         if(response.status===403) throw new Error('TaskOps AI access was denied. Refresh the local API configuration.');
         if(response.status===429) throw new Error('TaskOps AI is busy or the daily limit was reached. Try again later.');
         throw new Error(message||'TaskOps could not generate this workflow. Try again.');
@@ -307,10 +643,11 @@
       const config=window.TASKOPS_CONFIG||{};
       const response=await fetch(`${apiRoot()}${path}`,{
         method:options.method||'GET',
-        headers:{'Content-Type':'application/json','X-Api-Key':config.apiKey},
+        headers:{'Content-Type':'application/json','X-Api-Key':config.apiKey,...(await authHeaders())},
         body:options.body?JSON.stringify(options.body):undefined
       });
       const body=await response.json().catch(()=>({}));
+      if(response.status===401) { handleUnauthorized(); throw new Error('Your session expired. Sign in again.'); }
       if(!response.ok) throw new Error(body?.error?.message||'TaskOps could not sync this workspace.');
       return body;
     }
@@ -361,14 +698,14 @@
         resources:validResources||buildResourceKit(task.description||task.title||'New task',category)
       };
     }
-    const hadLocal = (() => { try { return localStorage.getItem(STORAGE_KEY)!=null; } catch (_) { return false; } })();
+    let hadLocal = false;
     const seed = [
       {id:'seed-1',title:'Calculus 1 Review',description:'Prepare for the midterm with focused practice and concept review.',category:'study',priority:'high',due:'',created:Date.now()-172800000,tools:['Desmos','Khan Academy','Quizlet'],steps:['List exam topics and formulas','Review limits and derivatives','Complete 15 derivative problems','Practice applications and word problems','Take a timed practice test'].map((text,i)=>({id:'c'+i,text,done:i<3}))},
       {id:'seed-2',title:'Senior Capstone Research',description:'Research AI-assisted workflow systems and prepare a structured literature review.',category:'research',priority:'medium',due:'',created:Date.now()-86400000,tools:['Google Scholar','arXiv','Zotero'],steps:['Define research questions','Collect primary sources','Annotate and group evidence','Build literature review outline','Draft related work section','Review citations and claims'].map((text,i)=>({id:'r'+i,text,done:i<2}))},
       {id:'seed-3',title:'TaskOps Browser Extension',description:'Build and validate an overlay for managing workflows without leaving the page.',category:'development',priority:'medium',due:'',created:Date.now(),tools:['GitHub','Stack Overflow','Figma'],steps:['Define extension permissions','Build page overlay','Persist tasks locally','Test on multiple websites','Package the extension'].map((text,i)=>({id:'d'+i,text,done:i<4}))}
     ];
     const defaultState = {tasks:seed,view:'dashboard',query:'',filter:'all',profile:{name:'TaskOps User'}};
-    let state = loadState();
+    let state = null;
     let dirty = false;
     let saveTimer;
     const app = document.getElementById('app');
@@ -377,7 +714,7 @@
 
     function loadState() {
       try {
-        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        const saved = JSON.parse(localStorage.getItem(storageKey()));
         if (saved && Array.isArray(saved.tasks)) return {...defaultState,...saved,tasks:saved.tasks.map(hydrateTask),query:'',view:'dashboard'};
       } catch (_) {}
       const initial=typeof structuredClone === 'function' ? structuredClone(defaultState) : JSON.parse(JSON.stringify(defaultState));
@@ -385,7 +722,8 @@
       return initial;
     }
     function persistLocal() {
-      localStorage.setItem(STORAGE_KEY,JSON.stringify({tasks:state.tasks,profile:state.profile}));
+      if (!state) return;
+      localStorage.setItem(storageKey(),JSON.stringify({tasks:state.tasks,profile:state.profile}));
     }
     function saveState() {
       dirty=true;
@@ -437,10 +775,10 @@
       if(/study|exam|quiz|learn|class|course|homework|math/.test(text)) return 'study';
       return 'planning';
     }
-    function relevantTasks() {
+    function relevantTasks(ignoreFilter) {
       const q=state.query.trim().toLowerCase();
       return state.tasks.filter(task => {
-        const matchesFilter=state.filter==='all'||status(task)===state.filter;
+        const matchesFilter=ignoreFilter||state.filter==='all'||status(task)===state.filter;
         const resourceText=(task.resources||[]).flatMap(resource=>[resource.name,resource.type,resource.description]).join(' ');
         const haystack=[task.title,task.description,...task.tools,...task.steps.map(s=>s.text),resourceText].join(' ').toLowerCase();
         return matchesFilter && (!q||haystack.includes(q));
@@ -451,9 +789,10 @@
       document.getElementById('toastRegion').append(el); setTimeout(()=>el.remove(),2800);
     }
     function setView(view) {
+      if(!state) return;
       state.view=view; state.query=''; search.value='';
       document.querySelectorAll('.nav-button').forEach(btn=>btn.classList.toggle('active',btn.dataset.view===view));
-      const titles={dashboard:'Overview',tasks:'Tasks',resources:'Resources',analytics:'Analytics',settings:'Settings'};
+      const titles={dashboard:'Overview',tasks:'Tasks',board:'Board',resources:'Resources',analytics:'Analytics',settings:'Settings'};
       document.getElementById('topTitle').textContent=titles[view]; sidebar.classList.remove('open'); render();
     }
     function taskCard(task) {
@@ -502,6 +841,43 @@
         <div class="list">${tasks.length?tasks.map(t=>`<article class="task-row"><div class="task-icon">${plans[t.category]?.icon||'T'}</div><div><h4>${escapeHtml(t.title)}</h4><p>${escapeHtml(t.description)}</p></div><div class="row-progress"><div class="progress-meta"><span>Progress</span><span>${progress(t)}%</span></div><div class="progress" style="margin-bottom:0"><span style="width:${progress(t)}%"></span></div></div><span class="priority ${t.priority}">${escapeHtml(t.priority)} priority</span><button class="btn small" data-open="${escapeHtml(t.id)}">Open</button></article>`).join(''):'<div class="empty">No tasks match this filter.</div>'}</div></section>`;
       const filter=document.getElementById('statusFilter'); filter.value=state.filter; filter.addEventListener('change',()=>{state.filter=filter.value;render();});
     }
+    function boardView() {
+      const tasks=relevantTasks(true);
+      const columns=[
+        {key:'planned',label:'Not started',hint:'Drag here to clear progress'},
+        {key:'active',label:'In progress',hint:'Drag here to mark the next step done'},
+        {key:'completed',label:'Completed',hint:'Drag here to finish all steps'}
+      ];
+      const cards=statusKey=>tasks.filter(t=>status(t)===statusKey).map(task=>{
+        const p=progress(task);
+        const due=task.due?`<span>${escapeHtml(fmtDate(task.due))}</span>`:'<span></span>';
+        return `<article class="board-card" draggable="true" data-task-id="${escapeHtml(task.id)}" data-open="${escapeHtml(task.id)}" role="button" tabindex="0" aria-label="Open ${escapeHtml(task.title)}"><h4>${escapeHtml(task.title)}</h4><p>${escapeHtml(task.description||'')}</p><div class="progress"><span style="width:${p}%"></span></div><div class="board-meta"><span>${p}% · ${task.steps.filter(s=>s.done).length}/${task.steps.length} steps</span><span class="priority ${task.priority}">${escapeHtml(task.priority)}</span>${due}</div></article>`;
+      }).join('');
+      app.innerHTML=`<section class="view"><div class="dashboard-head"><div><h1 class="page-title">Board</h1><p class="page-subtitle">Drag cards between columns — the step checkboxes update to match.</p></div><button class="btn primary" data-create>New task</button></div>
+        <div class="board">${columns.map(col=>`<div class="board-column" data-column="${col.key}" aria-label="${col.label} column"><div class="board-head"><h4>${col.label}</h4><span class="board-count">${tasks.filter(t=>status(t)===col.key).length}</span></div><div class="board-list">${cards(col.key)||`<div class="board-empty">${col.hint}</div>`}</div></div>`).join('')}</div></section>`;
+      let draggedId=null;
+      app.querySelectorAll('.board-card').forEach(card=>{
+        card.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openWorkspace(card.dataset.taskId);}});
+        card.addEventListener('dragstart',event=>{draggedId=card.dataset.taskId;card.classList.add('dragging');event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',draggedId);});
+        card.addEventListener('dragend',()=>{draggedId=null;app.querySelectorAll('.board-column').forEach(c=>c.classList.remove('drag-over'));card.classList.remove('dragging');});
+      });
+      app.querySelectorAll('.board-column').forEach(column=>{
+        column.addEventListener('dragover',event=>{event.preventDefault();event.dataTransfer.dropEffect='move';column.classList.add('drag-over');});
+        column.addEventListener('dragleave',event=>{if(!column.contains(event.relatedTarget))column.classList.remove('drag-over');});
+        column.addEventListener('drop',event=>{
+          event.preventDefault(); column.classList.remove('drag-over');
+          const id=draggedId||event.dataTransfer.getData('text/plain'); if(!id)return;
+          const task=state.tasks.find(t=>t.id===id); if(!task)return;
+          const target=column.dataset.column;
+          if(target==='completed'){task.steps.forEach(step=>step.done=true);}
+          else if(target==='planned'){task.steps.forEach(step=>step.done=false);}
+          else { const done=task.steps.filter(step=>step.done).length; if(done===0&&task.steps.length){task.steps[0].done=true;} else if(done===task.steps.length&&task.steps.length){task.steps[task.steps.length-1].done=false;} }
+          saveState();
+          render();
+          toast(`Moved “${task.title}” to ${column.querySelector('h4').textContent}.`);
+        });
+      });
+    }
     function resourcesView() {
       const q=state.query.trim().toLowerCase();
       const list=state.tasks.flatMap(task=>(task.resources||[]).map(resource=>({...resource,taskId:task.id,taskTitle:task.title})))
@@ -517,19 +893,26 @@
         <div class="panel-grid"><section class="panel"><h4>Progress by task</h4>${state.tasks.length?state.tasks.map(t=>`<div style="margin:13px 0"><div class="progress-meta"><span>${escapeHtml(t.title)}</span><span>${progress(t)}%</span></div><div class="progress"><span style="width:${progress(t)}%"></span></div></div>`).join(''):'<div class="empty">No task data yet.</div>'}</section><section class="panel"><h4>Workflow mix</h4>${categories.map(c=>`<div class="suggestion"><span>${plans[c.cat].icon}</span><div><b>${c.cat[0].toUpperCase()+c.cat.slice(1)}</b><small>${c.count} workflow${c.count===1?'':'s'}</small></div></div>`).join('')}</section></div></section>`;
     }
     function settingsView() {
-      app.innerHTML=`<section class="view"><h1 class="page-title">Settings</h1><p class="page-subtitle">Profile, backup, and the shared TaskOps workspace. This browser keeps a copy if the API is unavailable.</p><div class="settings-grid">
+      app.innerHTML=`<section class="view"><h1 class="page-title">Settings</h1><p class="page-subtitle">Account, profile, backup, and sync. This browser keeps a copy if the API is unavailable.</p><div class="settings-grid">
+        <section class="setting"><h4>Account</h4><p id="accountDetails">Workspace sync is tied to your Amazon Cognito account.</p><div class="signout-row"><span id="accountEmail"></span><button class="btn" id="settingsSignOut">Sign out</button></div></section>
         <section class="setting"><h4>Profile</h4><p>Your initials appear in the application header.</p><div class="form-group"><label for="profileName">Display name</label><input class="field" id="profileName" value="${escapeHtml(state.profile.name)}" maxlength="50"></div><button class="btn primary" id="saveProfile" style="margin-top:12px">Save profile</button></section>
         <section class="setting"><h4>Export workspace</h4><p>Download all tasks, steps, progress, and preferences as JSON.</p><button class="btn" id="exportData">Download backup</button></section>
         <section class="setting"><h4>Import workspace</h4><p>Restore a TaskOps JSON backup. Imported data replaces the current workspace.</p><input class="field" id="importData" type="file" accept="application/json"></section>
-        <section class="setting"><h4>Delete workspace</h4><p>Remove all saved tasks from this browser and the shared TaskOps workspace. This action cannot be undone.</p><button class="btn danger" id="clearData">Delete all data</button></section>
+        <section class="setting"><h4>Delete workspace</h4><p>Remove all saved tasks from this browser and your synced AWS workspace. This action cannot be undone.</p><button class="btn danger" id="clearData">Delete all data</button></section>
       </div></section>`;
       document.getElementById('saveProfile').onclick=()=>{ const value=document.getElementById('profileName').value.trim(); if(value){state.profile.name=value;saveState();setAvatar();toast('Profile saved.');} };
+      const auth=readAuth();
+      const accountEmail=document.getElementById('accountEmail');
+      const settingsSignOut=document.getElementById('settingsSignOut');
+      if(auth?.email){ accountEmail.textContent=auth.email; settingsSignOut.hidden=false; }
+      else { accountEmail.textContent='Local mode — redeploy the backend to enable sign-in.'; settingsSignOut.hidden=true; }
+      settingsSignOut.onclick=signOut;
       document.getElementById('exportData').onclick=exportData;
       document.getElementById('importData').onchange=importData;
       document.getElementById('clearData').onclick=()=>{ if(confirm('Delete every saved TaskOps workflow from this workspace?')){state.tasks=[];saveState();render();toast('Workspace cleared.');} };
     }
     function render() {
-      ({dashboard:dashboardView,tasks:tasksView,resources:resourcesView,analytics:analyticsView,settings:settingsView}[state.view]||dashboardView)();
+      ({dashboard:dashboardView,tasks:tasksView,board:boardView,resources:resourcesView,analytics:analyticsView,settings:settingsView}[state.view]||dashboardView)();
     }
     function openCreate() {
       const fragment=document.getElementById('createTemplate').content.cloneNode(true); document.body.append(fragment);
@@ -566,6 +949,8 @@
         <div class="progress-meta"><span>Workflow progress</span><span id="workspacePercent">${progress(task)}%</span></div><div class="progress"><span id="workspaceBar" style="width:${progress(task)}%"></span></div>
         <div class="toolbar"><span class="priority ${task.priority}">${task.priority} priority</span><span class="muted">Due: ${fmtDate(task.due)}</span></div>
         <h4>Action plan</h4><div class="steps" id="stepList"></div><form class="add-step" id="addStep"><input class="field" name="step" maxlength="140" placeholder="Add another step" required><button class="btn" type="submit">Add</button></form>
+        <div class="adjust-plan"><div class="workspace-section-head"><div><h4>Adjust plan with AI</h4><p>Tell TaskOps how to change the plan — e.g. “make it doable in under 2 hours” or “add a research step before drafting.”</p></div></div>
+        <form class="adjust-row" id="adjustForm"><input class="field" name="instruction" maxlength="300" placeholder="How should the plan change?" required aria-label="Adjustment instruction"><button class="btn" id="adjustButton" type="submit">Adjust</button></form><p class="form-error" id="adjustError" role="alert"></p></div>
         <div class="workspace-section-head"><div><h4>Resource hub</h4><p>References, tools, and workspaces collected for this task.</p></div><div class="workspace-section-actions"><button class="btn small ghost" id="refreshResources">Refresh</button><button class="btn small" id="openResources">Open all</button></div></div>
         <div class="workspace-resource-grid" id="workspaceResources"></div>
         <form class="resource-form" id="addResource"><input class="field" name="name" maxlength="80" placeholder="Resource name" required><input class="field" name="url" type="url" placeholder="https://…" required><button class="btn" type="submit">Add resource</button></form>
@@ -579,6 +964,28 @@
       renderSteps(); renderResources(); updateProgress();
       backdrop.querySelector('#workspaceTitle').onchange=e=>{if(e.target.value.trim()){task.title=e.target.value.trim();saveState();}else e.target.value=task.title;};
       backdrop.querySelector('#addStep').onsubmit=e=>{e.preventDefault();const input=e.target.elements.step;task.steps.push({id:uid(),text:input.value.trim(),done:false});input.value='';saveState();renderSteps();updateProgress();};
+      backdrop.querySelector('#adjustForm').onsubmit=async e=>{
+        e.preventDefault();
+        const form=e.target; const instruction=form.elements.instruction.value.trim(); const button=backdrop.querySelector('#adjustButton'); const errorMessage=backdrop.querySelector('#adjustError');
+        errorMessage.textContent='';
+        if(!configured()) { errorMessage.textContent='TaskOps AI is not configured. Deploy the backend and reload this page.'; return; }
+        if(task.steps.length<1) { errorMessage.textContent='Add at least one step before adjusting the plan.'; return; }
+        button.disabled=true; button.textContent='Adjusting…';
+        try {
+          const result=await apiJson('/workflow/adjust',{method:'POST',body:{title:task.title,category:task.category,steps:task.steps.map(step=>step.text),instruction}});
+          const steps=result?.plan?.steps;
+          if(!Array.isArray(steps)||steps.length<1) throw new Error('TaskOps received an invalid plan. Try again.');
+          task.steps=steps.map(text=>({id:uid(),text,done:false}));
+          if(Array.isArray(result?.plan?.tools)&&result.plan.tools.length) task.tools=[...new Set(result.plan.tools)];
+          saveState(); renderSteps(); updateProgress();
+          form.elements.instruction.value='';
+          toast('Plan adjusted. Steps were reset for your review.');
+        } catch(error) {
+          errorMessage.textContent=error.message||'TaskOps could not adjust this plan. Try again.';
+        } finally {
+          button.disabled=false; button.textContent='Adjust';
+        }
+      };
       backdrop.querySelector('#addResource').onsubmit=e=>{e.preventDefault();const name=e.target.elements.name.value.trim();const rawUrl=e.target.elements.url.value.trim();try{const url=new URL(rawUrl);if(!['http:','https:'].includes(url.protocol))throw new Error();task.resources.push({id:uid(),name,type:'Custom',url:url.href,description:'Added to this task workspace.',source:'User'});saveState();e.target.reset();renderResources();toast('Resource added.');}catch(_){alert('Enter a valid http or https URL.');}};
       backdrop.querySelector('#refreshResources').onclick=()=>{const custom=task.resources.filter(resource=>resource.source==='User');task.resources=[...custom,...buildResourceKit(task.description,task.category)];saveState();renderResources();toast('Resource suggestions refreshed.');};
       backdrop.querySelector('#openResources').onclick=()=>{task.resources.forEach(resource=>window.open(resource.url,'_blank','noopener,noreferrer'));};
@@ -608,9 +1015,22 @@
     document.addEventListener('click',e=>{const create=e.target.closest('[data-create]');if(create){openCreate();return;}const open=e.target.closest('[data-open]');if(open){openWorkspace(open.dataset.open);return;}const del=e.target.closest('[data-delete]');if(del){deleteTask(del.dataset.delete);return;}const jump=e.target.closest('[data-view-jump]');if(jump)setView(jump.dataset.viewJump);});
     document.querySelectorAll('.nav-button').forEach(btn=>btn.addEventListener('click',()=>setView(btn.dataset.view)));
     document.getElementById('menuButton').onclick=()=>sidebar.classList.toggle('open');
-    search.addEventListener('input',()=>{state.query=search.value;if(state.view==='settings'||state.view==='analytics')setView('tasks');else render();});
+    search.addEventListener('input',()=>{if(!state)return;state.query=search.value;if(state.view==='settings'||state.view==='analytics')setView('tasks');else render();});
     document.addEventListener('keydown',e=>{if(e.key==='Escape'){document.querySelector('.modal-backdrop')?.remove();sidebar.classList.remove('open');}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();search.focus();}});
-    persistLocal(); setAvatar(); render(); pullRemote();
+    function bootApp() {
+      hadLocal = (() => { try { return localStorage.getItem(storageKey())!=null; } catch (_) { return false; } })();
+      state = loadState();
+      setSignOutVisible(!!cognitoConfig() && !!readAuth());
+      persistLocal(); setAvatar(); render(); pullRemote();
+    }
+    bindAuth();
+    (async () => {
+      if (cognitoConfig()) {
+        const session = await currentSession();
+        if (!session) { showAuthScreen('signIn'); return; }
+      }
+      bootApp();
+    })();
   })();
   </script>
 </body>

@@ -40,9 +40,11 @@ aws cloudformation deploy \
 ENDPOINT="$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" --output text)"
 API_KEY_ID="$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" --query "Stacks[0].Outputs[?OutputKey=='ApiKeyId'].OutputValue" --output text)"
 API_KEY="$(aws apigateway get-api-key --api-key "$API_KEY_ID" --include-value --region "$REGION" --query value --output text)"
+USER_POOL_ID="$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" --query "Stacks[0].Outputs[?OutputKey=='UserPoolId'].OutputValue" --output text)"
+USER_POOL_CLIENT_ID="$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" --query "Stacks[0].Outputs[?OutputKey=='UserPoolClientId'].OutputValue" --output text)"
 
 umask 077
-printf '{"endpoint":"%s","apiKey":"%s","stack":"%s","bucket":"%s"}\n' \
-  "$ENDPOINT" "$API_KEY" "$STACK_NAME" "$BUCKET" >deployment-output.json
+printf '{"endpoint":"%s","apiKey":"%s","cognitoRegion":"%s","userPoolId":"%s","userPoolClientId":"%s","stack":"%s","bucket":"%s"}\n' \
+  "$ENDPOINT" "$API_KEY" "$REGION" "$USER_POOL_ID" "$USER_POOL_CLIENT_ID" "$STACK_NAME" "$BUCKET" >deployment-output.json
 printf 'Endpoint: %s\nStack: %s\nDeployment bucket: %s\nSensitive local client config: deployment-output.json\n' \
   "$ENDPOINT" "$STACK_NAME" "$BUCKET"

@@ -229,6 +229,91 @@ test('creates a Jira epic and child tasks from a workflow', async () => {
   }
 });
 
+test('stores workspaces per Cognito user instead of sharing them', async () => {
+  const previous = process.env.STATE_TABLE_NAME;
+  process.env.STATE_TABLE_NAME = 'taskops-state';
+  try {
+    const documents = memoryDocuments();
+    const handler = createHandler({ send: async () => { throw new Error('bedrock should not be called'); } }, { documents });
+    const put = (sub, title) => handler({
+      httpMethod: 'PUT',
+      resource: '/state',
+      requestContext: { authorizer: { claims: { sub } } },
+      body: JSON.stringify({ tasks: [{ id: 'task-1', title }] })
+    });
+    const get = sub => handler({
+      httpMethod: 'GET',
+      resource: '/state',
+      requestContext: { authorizer: { claims: { sub } } }
+    });
+
+    await put('11111111-1111-4111-8111-111111111111', 'Ava workspace');
+    await put('22222222-2222-4222-8222-222222222222', 'Marco workspace');
+    const ava = JSON.parse((await get('11111111-1111-4111-8111-111111111111')).body);
+    const marco = JSON.parse((await get('22222222-2222-4222-8222-222222222222')).body);
+
+    assert.equal(ava.tasks[0].title, 'Ava workspace');
+    assert.equal(marco.tasks[0].title, 'Marco workspace');
+  } finally {
+    if (previous == null) delete process.env.STATE_TABLE_NAME;
+    else process.env.STATE_TABLE_NAME = previous;
+  }
+});
+
+test('adjusts an existing plan with Bedrock and returns updated steps', async () => {
+  let commandInput;
+  const bedrock = {
+    async send(command) {
+      commandInput = command.input;
+      return {
+        output: { message: { content: [{ text: JSON.stringify({
+          steps: [
+            'List the exam topics and learning objectives',
+            'Gather practice problems for limits and derivatives',
+            'Complete 15 focused derivative problems',
+            'Review mistakes and revisit weak concepts',
+            'Run a timed self-test under exam conditions'
+          ],
+          tools: ['Desmos']
+        }) }] } },
+        usage: { inputTokens: 300, outputTokens: 180 }
+      };
+    }
+  };
+
+  const response = await createHandler(bedrock)({
+    httpMethod: 'POST',
+    resource: '/workflow/adjust',
+    body: JSON.stringify({
+      title: 'Calculus 1 Review',
+      category: 'study',
+      steps: ['Review derivatives'],
+      instruction: 'Make it concrete for exam prep.'
+    })
+  });
+  const body = JSON.parse(response.body);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(body.plan.steps.length, 5);
+  assert.deepEqual(body.plan.tools, ['Desmos']);
+  assert.match(commandInput.messages[0].content[0].text, /Make it concrete/);
+  assert.match(commandInput.system[0].text, /revise an existing TaskOps workflow/i);
+});
+
+test('rejects an invalid adjust instruction before invoking Bedrock', async () => {
+  let called = false;
+  const response = await createHandler({ send: async () => { called = true; } })({
+    httpMethod: 'POST',
+    resource: '/workflow/adjust',
+    body: JSON.stringify({ steps: ['Review derivatives'], instruction: '  ' })
+  });
+  const body = JSON.parse(response.body);
+
+  assert.equal(response.statusCode, 400);
+  assert.equal(body.error.code, 'INVALID_REQUEST');
+  assert.equal(called, false);
+});
+
 test('does not call Jira when the secret is still a placeholder', async () => {
   const previous = process.env.JIRA_SECRET_ARN;
   process.env.JIRA_SECRET_ARN = 'arn:aws:secretsmanager:us-east-1:123:secret:jira';

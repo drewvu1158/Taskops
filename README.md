@@ -4,8 +4,9 @@ TaskOps turns a natural-language goal into an actionable workflow. The local das
 
 ```text
 Dashboard or extension → API Gateway → Lambda → Amazon Bedrock Converse
-                                         ├─ DynamoDB shared workspace
-                                         └─ Jira Cloud (push only, after the secret is set)
+                            │            ├─ Cognito user pool (JWT required)
+                            ▼            ├─ DynamoDB per-user workspace
+                  Cognito JWT verify     └─ Jira Cloud (push only, after the secret is set)
 ```
 
 The deployed model is Amazon Nova 2 Lite (`us.amazon.nova-2-lite-v1:0`) in `us-east-1`.
@@ -55,6 +56,8 @@ cd backend
 cd ..
 ```
 
+The deploy also creates an Amazon Cognito user pool. The dashboard and the extension require sign-in: anyone using TaskOps now creates an account with an email and password, and every workspace (tasks, profile, daily generation quota) stays scoped to that account. New accounts get a verification code by email before the first sign-in.
+
 ### AWS CloudShell alternative
 
 If AWS CLI is not available on Windows, upload `taskops-backend.zip` to AWS CloudShell in `us-east-1` and run:
@@ -73,12 +76,15 @@ Detailed backend deployment, security, limits, tests, and cost notes are in [`ba
 
 Open `taskops_dashboard.html` in Chrome. If it was already open, close and reopen it after deployment so it loads the generated `taskops-config.js` file.
 
-1. Click **Create workflow** or **Start with a goal**.
-2. Enter a goal, such as `Plan a three-day trip to Seattle with an $800 budget.`
-3. Submit the goal.
-4. Confirm that TaskOps displays generated workflow steps, tools, and resources.
+1. Sign in or create an account on the TaskOps sign-in screen. New accounts must confirm an emailed code before signing in.
+2. Click **Create workflow** or **Start with a goal**.
+3. Enter a goal, such as `Plan a three-day trip to Seattle with an $800 budget.`
+4. Submit the goal.
+5. Confirm that TaskOps displays generated workflow steps, tools, and resources.
 
-The request is sent to the deployed API; the browser never receives AWS credentials. Saved tasks and profile sync through `GET/PUT /state`. This browser keeps a local copy if the API is unreachable. Open a task and choose **Send to Jira** after the Jira secret is configured.
+Prefer the **Board** tab for a drag-and-drop Kanban view (Not started / In progress / Completed — dropping a card updates its step checkboxes), or open a task and use **Adjust plan with AI** to reshape the plan with an instruction like “make it doable in under 2 hours.”
+
+The request is sent to the deployed API with your Cognito ID token; the browser never receives AWS credentials. Saved tasks and profile sync through `GET/PUT /state`, one workspace per account. This browser keeps a per-user local copy if the API is unreachable. Open a task and choose **Send to Jira** after the Jira secret is configured.
 
 ## Load and run the Chrome extension
 
@@ -97,6 +103,8 @@ The request is sent to the deployed API; the browser never receives AWS credenti
 
 After changing extension files, use the circular-arrow **Reload** control on the extension card. The top-left **Update** button on `chrome://extensions` is not the reload control. The extension cannot inject an overlay into restricted pages such as `chrome://extensions`, the Chrome Web Store, or a new-tab page.
 
+The extension asks you to sign in with the same Cognito account as the dashboard the first time it syncs. Its saved workflows are cached per account in `chrome.storage.local`, separate from the dashboard's browser cache.
+
 ## Verify the backend locally
 
 From `backend`:
@@ -114,6 +122,7 @@ CloudWatch alarms for Lambda errors and throttles, the manual AWS Budgets alert,
 ## Security notes
 
 - `taskops-config.js`, `taskops-extension/config.js`, and `backend/deployment-output.json` contain client credentials and are excluded from Git.
-- The API key is visible to this local browser client by design; it is not an AWS access key.
-- Rotate the API Gateway key if local configuration files are shared.
-- Add Cognito or another user-authentication layer before serving the app to untrusted users.
+- The API key is visible to this local browser client by design; it is not an AWS access key, and it no longer grants workspace access on its own.
+- Every API route requires a Cognito sign-in. Cognito stores and hashes passwords; TaskOps never sees them. ID tokens expire after 60 minutes and are refreshed automatically for 30 days.
+- Workspaces are partitioned by the Cognito `sub` claim in DynamoDB and cached per user in the browser. A user cannot read or write another user's workspace.
+- Rotate the API Gateway key if local configuration files are shared. Workspaces stored before Cognito was added remain under the old partition value and are invisible to signed-in users.

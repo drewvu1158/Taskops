@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: TaskOps workflow generation API backed by Amazon Bedrock Converse, with a shared workspace in DynamoDB.
+Description: TaskOps workflow generation API backed by Amazon Bedrock Converse, with Amazon Cognito sign-in and per-user workspaces in DynamoDB.
 
 Parameters:
   AllowedOrigin:
@@ -20,7 +20,7 @@ Parameters:
     Default: 100
     MinValue: 1
     MaxValue: 10000
-    Description: Maximum Bedrock generations per API key per UTC day. Enforced in Lambda so workspace sync does not consume it.
+    Description: Maximum Bedrock generations per signed-in user per UTC day. Enforced in Lambda so workspace sync does not consume it.
   ApiDailyQuota:
     Type: Number
     Default: 10000
@@ -46,7 +46,7 @@ Resources:
       EndpointConfiguration: REGIONAL
       Cors:
         AllowMethods: "'GET,PUT,POST,OPTIONS'"
-        AllowHeaders: "'Content-Type,X-Api-Key'"
+        AllowHeaders: "'Content-Type,X-Api-Key,Authorization'"
         AllowOrigin: !Sub "'${AllowedOrigin}'"
         MaxAge: "'600'"
       Auth:
@@ -60,17 +60,22 @@ Resources:
             BurstLimit: 10
             RateLimit: 5
           UsagePlanName: !Sub '${AWS::StackName}-usage'
+        Authorizers:
+          CognitoAuthorizer:
+            Type: COGNITO_USER_POOLS
+            UserPoolArn: !GetAtt TaskOpsUserPool.Arn
+            IdentitySource: method.request.header.Authorization
       GatewayResponses:
         DEFAULT_4XX:
           ResponseParameters:
             Headers:
               Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"
-              Access-Control-Allow-Headers: "'Content-Type,X-Api-Key'"
+              Access-Control-Allow-Headers: "'Content-Type,X-Api-Key,Authorization'"
         DEFAULT_5XX:
           ResponseParameters:
             Headers:
               Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"
-              Access-Control-Allow-Headers: "'Content-Type,X-Api-Key'"
+              Access-Control-Allow-Headers: "'Content-Type,X-Api-Key,Authorization'"
       Models:
         WorkflowRequest:
           type: object
@@ -90,6 +95,35 @@ Resources:
                 - study
                 - development
                 - planning
+        AdjustPlanRequest:
+          type: object
+          additionalProperties: false
+          required:
+            - instruction
+            - steps
+          properties:
+            instruction:
+              type: string
+              minLength: 3
+              maxLength: 300
+            title:
+              type: string
+              maxLength: 80
+            category:
+              type: string
+              enum:
+                - research
+                - study
+                - development
+                - planning
+            steps:
+              type: array
+              minItems: 1
+              maxItems: 30
+              items:
+                type: string
+                minLength: 1
+                maxLength: 140
 
   WorkflowFunction:
     Type: AWS::Serverless::Function
@@ -138,6 +172,7 @@ Resources:
             Method: post
             Auth:
               ApiKeyRequired: true
+              Authorizer: CognitoAuthorizer
             RequestModel:
               Model: WorkflowRequest
               Required: true
@@ -151,6 +186,7 @@ Resources:
             Method: get
             Auth:
               ApiKeyRequired: true
+              Authorizer: CognitoAuthorizer
         PutState:
           Type: Api
           Properties:
@@ -159,6 +195,21 @@ Resources:
             Method: put
             Auth:
               ApiKeyRequired: true
+              Authorizer: CognitoAuthorizer
+        AdjustPlan:
+          Type: Api
+          Properties:
+            RestApiId: !Ref TaskOpsApi
+            Path: /workflow/adjust
+            Method: post
+            Auth:
+              ApiKeyRequired: true
+              Authorizer: CognitoAuthorizer
+            RequestModel:
+              Model: AdjustPlanRequest
+              Required: true
+              ValidateBody: true
+              ValidateParameters: false
         CreateJiraIssues:
           Type: Api
           Properties:
@@ -167,6 +218,7 @@ Resources:
             Method: post
             Auth:
               ApiKeyRequired: true
+              Authorizer: CognitoAuthorizer
 
   WorkflowLogGroup:
     Type: AWS::Logs::LogGroup
@@ -193,6 +245,56 @@ Resources:
       Tags:
         - Key: Project
           Value: TaskOps
+
+  TaskOpsUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub '${AWS::StackName}-users'
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailSubject: TaskOps verification code
+        EmailMessage: 'Your TaskOps verification code is {####}. It expires in 24 hours.'
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireUppercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+          TemporaryPasswordValidityDays: 7
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      DeletionProtection: INACTIVE
+      UserPoolTags:
+        Project: TaskOps
+
+  TaskOpsUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub '${AWS::StackName}-web'
+      UserPoolId: !Ref TaskOpsUserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      IdTokenValidity: 60
+      AccessTokenValidity: 60
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        IdToken: minutes
+        AccessToken: minutes
+        RefreshToken: days
+      PreventUserExistenceErrors: ENABLED
+      ReadAttributes:
+        - email
+      WriteAttributes:
+        - email
 
   JiraSecret:
     Type: AWS::SecretsManager::Secret
@@ -265,6 +367,14 @@ Outputs:
     Value: !Ref TaskOpsApiApiKey
   ApiId:
     Value: !Ref TaskOpsApi
+  UserPoolId:
+    Description: Cognito user pool that authenticates dashboard and extension users.
+    Value: !Ref TaskOpsUserPool
+  UserPoolClientId:
+    Description: Public Cognito app client ID used by the dashboard and extension (no client secret).
+    Value: !Ref TaskOpsUserPoolClient
+  CognitoRegion:
+    Value: !Ref AWS::Region
   LambdaFunctionName:
     Value: !Ref WorkflowFunction
   ModelId:
