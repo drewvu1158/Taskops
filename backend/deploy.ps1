@@ -26,8 +26,13 @@ if ($LASTEXITCODE -ne 0) {
 
 Push-Location $PSScriptRoot
 try {
-  npm ci --omit=dev
-  if ($LASTEXITCODE -ne 0) { throw 'npm ci failed.' }
+  Push-Location (Join-Path $PSScriptRoot 'src')
+  try {
+    npm ci --omit=dev
+    if ($LASTEXITCODE -ne 0) { throw 'npm ci failed.' }
+  } finally {
+    Pop-Location
+  }
 
   & $Aws cloudformation package `
     --template-file template.yaml `

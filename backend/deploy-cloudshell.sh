@@ -20,7 +20,7 @@ if ! aws s3api head-bucket --bucket "$BUCKET" 2>/dev/null; then
     'BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true'
 fi
 
-npm ci --omit=dev
+(cd src && npm ci --omit=dev)
 aws cloudformation package \
   --template-file template.yaml \
   --s3-bucket "$BUCKET" \
