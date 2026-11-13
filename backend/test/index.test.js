@@ -314,6 +314,118 @@ test('rejects an invalid adjust instruction before invoking Bedrock', async () =
   assert.equal(called, false);
 });
 
+test('keeps completed steps when the model labels them', async () => {
+  let commandInput;
+  const bedrock = {
+    async send(command) {
+      commandInput = command.input;
+      return {
+        output: { message: { content: [{ text: JSON.stringify({
+          steps: [
+            '[DONE] Review derivatives',
+            '[DONE] List the exam topics and learning objectives',
+            '[TODO] Gather practice problems for limits and derivatives',
+            '[TODO] Complete 15 focused derivative problems',
+            '[TODO] Run a timed self-test under exam conditions'
+          ],
+          tools: ['Desmos']
+        }) }] } },
+        usage: { inputTokens: 300, outputTokens: 180 }
+      };
+    }
+  };
+
+  const response = await createHandler(bedrock)({
+    httpMethod: 'POST',
+    resource: '/workflow/adjust',
+    body: JSON.stringify({
+      title: 'Calculus 1 Review',
+      category: 'study',
+      steps: ['[DONE] Review derivatives'],
+      instruction: 'Make the remaining work more concrete.'
+    })
+  });
+  const body = JSON.parse(response.body);
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(body.plan.steps[0], { text: 'Review derivatives', done: true });
+  assert.equal(body.plan.steps[2].done, false);
+  assert.equal(body.plan.steps.length, 5);
+  assert.match(commandInput.messages[0].content[0].text, /\[DONE\] Review derivatives/);
+});
+
+test('measures the 140 character step limit after the completion label', async () => {
+  const longStep = 'a'.repeat(140);
+  const bedrock = {
+    async send() {
+      return {
+        output: { message: { content: [{ text: JSON.stringify({
+          steps: [
+            `[DONE] ${longStep}`,
+            '[TODO] Gather practice problems for limits and derivatives',
+            '[TODO] Complete 15 focused derivative problems',
+            '[TODO] Review mistakes and revisit weak concepts',
+            '[TODO] Run a timed self-test under exam conditions'
+          ],
+          tools: []
+        }) }] } },
+        usage: {}
+      };
+    }
+  };
+
+  const response = await createHandler(bedrock)({
+    httpMethod: 'POST',
+    resource: '/workflow/adjust',
+    body: JSON.stringify({
+      title: 'Calculus 1 Review',
+      category: 'study',
+      steps: ['[DONE] Review derivatives'],
+      instruction: 'Make the remaining work more concrete.'
+    })
+  });
+  const body = JSON.parse(response.body);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(body.plan.steps[0].text.length, 140);
+  assert.equal(body.plan.steps[0].done, true);
+});
+
+test('rejects an adjusted step that is too long once the label is removed', async () => {
+  const bedrock = {
+    async send() {
+      return {
+        output: { message: { content: [{ text: JSON.stringify({
+          steps: [
+            `[TODO] ${'b'.repeat(141)}`,
+            '[TODO] Gather practice problems for limits and derivatives',
+            '[TODO] Complete 15 focused derivative problems',
+            '[TODO] Review mistakes and revisit weak concepts',
+            '[TODO] Run a timed self-test under exam conditions'
+          ],
+          tools: []
+        }) }] } },
+        usage: {}
+      };
+    }
+  };
+
+  const response = await createHandler(bedrock)({
+    httpMethod: 'POST',
+    resource: '/workflow/adjust',
+    body: JSON.stringify({
+      title: 'Calculus 1 Review',
+      category: 'study',
+      steps: ['[DONE] Review derivatives'],
+      instruction: 'Make the remaining work more concrete.'
+    })
+  });
+  const body = JSON.parse(response.body);
+
+  assert.equal(response.statusCode, 502);
+  assert.equal(body.error.code, 'MODEL_RESPONSE_INVALID');
+});
+
 test('does not call Jira when the secret is still a placeholder', async () => {
   const previous = process.env.JIRA_SECRET_ARN;
   process.env.JIRA_SECRET_ARN = 'arn:aws:secretsmanager:us-east-1:123:secret:jira';

@@ -80,10 +80,12 @@ Note: workspaces stored before Cognito was added live under the old API-key part
 `POST /workflow/adjust` revises an existing workflow to satisfy an instruction (for example, “make it doable in under 2 hours”). The request carries the task's title, category, current steps, and the instruction; the response replaces the plan rather than appending to it:
 
 ```json
-{ "plan": { "steps": ["..."], "tools": ["..."] } }
+{ "plan": { "steps": [{ "text": "...", "done": true }], "tools": ["..."] } }
 ```
 
-Model output is validated the same way as workflow generation (5–9 ordered steps, no duplicates, 0–5 tools). Each adjustment consumes one unit of the per-user daily generation cap. In the dashboard this lives under **Adjust plan with AI** inside the task workspace; applying a plan resets step completion for review.
+Steps are sent to the model as strings labelled `[DONE]` or `[TODO]`, and the model returns them the same way. Lambda strips the label before returning, so the response carries `done` as a boolean instead of leaking marker text into the interface. A `[DONE]` step keeps its original position, and a step's 140-character limit is measured after the label is removed.
+
+Model output is validated the same way as workflow generation (5–9 ordered steps, no duplicates, 0–5 tools). Each adjustment consumes one unit of the per-user daily generation cap. In the dashboard this lives under **Adjust plan with AI** inside the task workspace; applying a plan keeps the completion state of finished steps instead of resetting everything.
 
 ## Jira export
 

@@ -123,7 +123,7 @@ Resources:
               items:
                 type: string
                 minLength: 1
-                maxLength: 140
+                maxLength: 150
 
   WorkflowFunction:
     Type: AWS::Serverless::Function

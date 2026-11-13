@@ -1172,14 +1172,15 @@
         if(task.steps.length<1) { errorMessage.textContent='Add at least one step before adjusting the plan.'; return; }
         button.disabled=true; button.textContent='Adjusting…';
         try {
-          const result=await apiJson('/workflow/adjust',{method:'POST',body:{title:task.title,category:task.category,steps:task.steps.map(step=>step.text),instruction}});
+          const result=await apiJson('/workflow/adjust',{method:'POST',body:{title:task.title,category:task.category,steps:task.steps.map(step=>(step.done?'[DONE] ':'')+step.text),instruction}});
           const steps=result?.plan?.steps;
           if(!Array.isArray(steps)||steps.length<1) throw new Error('TaskOps received an invalid plan. Try again.');
-          task.steps=steps.map(text=>({id:uid(),text,done:false}));
+          task.steps=steps.map(step=>typeof step==='string'?{id:uid(),text:step,done:false}:{id:uid(),text:String(step?.text||'').trim(),done:step?.done===true}).filter(step=>step.text);
+          if(!task.steps.length) throw new Error('TaskOps received an invalid plan. Try again.');
           if(Array.isArray(result?.plan?.tools)&&result.plan.tools.length) task.tools=[...new Set(result.plan.tools)];
           saveState(); renderSteps(); updateProgress();
           form.elements.instruction.value='';
-          toast('Plan adjusted. Steps were reset for your review.');
+          toast('Plan adjusted. Completed steps were kept.');
         } catch(error) {
           errorMessage.textContent=error.message||'TaskOps could not adjust this plan. Try again.';
         } finally {
