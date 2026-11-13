@@ -121,6 +121,40 @@ The stack creates two CloudWatch alarms on the workflow Lambda:
 
 Missing metric data does not alarm. Pass `-AlarmEmail` to notify; otherwise the alarms are visible in the CloudWatch console only.
 
+## Delegated deploy access
+
+A teammate can deploy without holding account credentials the owner cannot revoke. The stack owner creates one IAM user with a policy that allows deployment but denies the destructive operations:
+
+```powershell
+aws iam create-policy --policy-name taskops-deploy-access --policy-document file://taskops-deploy-policy.json
+aws iam create-user --user-name taskops-deploy-partner
+aws iam attach-user-policy --user-name taskops-deploy-partner --policy-arn arn:aws:iam::<account>:policy/taskops-deploy-access
+aws iam create-access-key --user-name taskops-deploy-partner
+aws cloudformation update-termination-protection --stack-name taskops-bedrock --enable-termination-protection
+aws dynamodb update-continuous-backups --table-name taskops-bedrock-state --point-in-time-recovery-specification PointInTimeRecoveryEnabled=true
+```
+
+The policy allows the services `deploy.ps1` needs (CloudFormation, S3, IAM roles, Lambda, API Gateway, DynamoDB, Cognito, Secrets Manager, CloudWatch, SNS) and explicitly denies:
+
+- `cloudformation:DeleteStack`, `dynamodb:DeleteTable`, `cognito-idp:DeleteUserPool`, `s3:DeleteBucket`
+- creating users, access keys, or login profiles, and editing user policies
+- `secretsmanager:GetSecretValue`, so the delegated user cannot read the Jira token
+- account, billing, and Organizations actions
+
+An explicit `Deny` beats any `Allow`, so this holds even though the allow list is broad. Deploy rights still require creating roles and functions, so the policy is not a true least-privilege boundary: treat it as "can deploy and break the app, cannot delete the stack, the data, or the account."
+
+Cut access off at any time, with or without restoring it later:
+
+```powershell
+./revoke-deploy-access.ps1            # deactivate keys and detach the policy
+./revoke-deploy-access.ps1 -Restore   # re-enable both
+```
+
+IAM changes can take up to a minute to propagate. Revoking access does not undo code already deployed, and a deploy interrupted mid-flight can leave the stack in `UPDATE_ROLLBACK`.
+
+Because this account belongs to one student and spends that student's credits, the alternative is preferable when the teammate has their own AWS account: run `./deploy.ps1` against a separate stack instead of sharing deployment rights. See `revoke-deploy-access.ps1` for the teardown path.
+
+
 ## AWS Budgets alert
 
 An AWS Budget is **not** in `template.yaml`. Budgets are account-scoped, often fail or collide on an existing account, and a stack delete would remove an account-level budget. Cost-allocation tag filters also stay at $0 until someone activates the tag in Billing, which CloudFormation cannot do.

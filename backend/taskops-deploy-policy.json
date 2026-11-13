@@ -1,0 +1,79 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DeployServices",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:*",
+        "s3:*",
+        "iam:*",
+        "lambda:*",
+        "apigateway:*",
+        "dynamodb:*",
+        "cognito-idp:*",
+        "secretsmanager:*",
+        "cloudwatch:*",
+        "logs:*",
+        "sns:*",
+        "bedrock:GetFoundationModel",
+        "bedrock:ListFoundationModels",
+        "sts:GetCallerIdentity"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyStackAndDataDeletion",
+      "Effect": "Deny",
+      "Action": [
+        "cloudformation:DeleteStack",
+        "dynamodb:DeleteTable",
+        "cognito-idp:DeleteUserPool",
+        "cognito-idp:DeleteUserPoolClient",
+        "s3:DeleteBucket"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyIdentityAndAccountChanges",
+      "Effect": "Deny",
+      "Action": [
+        "iam:CreateUser",
+        "iam:DeleteUser",
+        "iam:CreateAccessKey",
+        "iam:UpdateAccessKey",
+        "iam:DeleteAccessKey",
+        "iam:CreateLoginProfile",
+        "iam:UpdateLoginProfile",
+        "iam:DeleteLoginProfile",
+        "iam:AttachUserPolicy",
+        "iam:DetachUserPolicy",
+        "iam:PutUserPolicy",
+        "iam:DeleteUserPolicy",
+        "iam:AddUserToGroup",
+        "iam:RemoveUserFromGroup",
+        "iam:CreatePolicyVersion",
+        "iam:SetDefaultPolicyVersion",
+        "iam:DeletePolicy",
+        "iam:DeletePolicyVersion",
+        "iam:CreateAccountAlias",
+        "iam:DeleteAccountAlias",
+        "organizations:*",
+        "account:*",
+        "billing:*",
+        "ce:*",
+        "aws-portal:*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenySecretRead",
+      "Effect": "Deny",
+      "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:BatchGetSecretValue"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
