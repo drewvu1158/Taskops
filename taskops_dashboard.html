@@ -249,8 +249,9 @@
     .workspace-summary p { margin:6px 0 0; color:var(--muted); font-size:13px; }
     .workspace-summary .field { font-family:var(--serif); font-size:20px; }
     .steps { display:grid; gap:0; border-top:1px solid var(--line); }
-    .step { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:9px; padding:8px 0; border:0; border-bottom:1px solid var(--line); border-radius:0; background:transparent; }
+    .step { display:grid; grid-template-columns:auto minmax(0, 1fr) auto auto; align-items:center; gap:9px; padding:8px 0; border:0; border-bottom:1px solid var(--line); border-radius:0; background:transparent; }
     .step input[type=checkbox] { width:15px; height:15px; accent-color:var(--accent); }
+    .step-time { color:var(--accent); white-space:nowrap; font-size:12px; }
     .step input[type=text] { width:100%; padding:6px 4px; border:1px solid transparent; border-radius:4px; color:var(--text); background:transparent; }
     .step input[type=text]:focus { border-color:var(--line-strong); background:var(--surface); }
     .step.done input[type=text] { color:var(--faint); text-decoration:line-through; }
@@ -504,6 +505,7 @@
             <div class="form-group"><label for="taskTitle">Task name (optional)</label><input class="field" id="taskTitle" name="title" maxlength="80" placeholder="We'll use a short version of your goal"></div>
             <div class="form-group"><label for="priority">Priority</label><select class="select" id="priority" name="priority"><option value="medium">Medium</option><option value="high">High</option><option value="low">Low</option></select></div>
             <div class="form-group"><label for="dueDate">Due date</label><input class="field" id="dueDate" name="due" type="date"></div>
+            <div class="form-group"><label for="startDate">Start date</label><input class="field" id="startDate" name="start" type="date"></div>
             <div class="form-group"><label for="category">Workflow type</label><select class="select" id="category" name="category"><option value="auto">Detect automatically</option><option value="research">Research & writing</option><option value="study">Study & learning</option><option value="development">Software project</option><option value="planning">Planning & organization</option></select></div>
           </div>
           <p class="form-error" id="createError" role="alert" aria-live="polite"></p>
@@ -802,7 +804,7 @@
         }
       });
     }
-    async function generateWorkflow(goal, category, signal) {
+    async function generateWorkflow(goal, category, start, due, signal) {
       const config=window.TASKOPS_CONFIG||{};
       if(!config.apiUrl||!config.apiKey) throw new Error('TaskOps AI is not configured. Deploy the backend and reload this page.');
       let response;
@@ -810,7 +812,7 @@
         response=await fetch(config.apiUrl,{
           method:'POST',
           headers:{'Content-Type':'application/json','X-Api-Key':config.apiKey,...(await authHeaders())},
-          body:JSON.stringify({goal,category}),
+          body:JSON.stringify({goal,category,start,due}),
           signal
         });
       } catch (error) {
@@ -967,6 +969,7 @@
     function progress(task) { return task.steps.length ? Math.round(task.steps.filter(s=>s.done).length/task.steps.length*100) : 0; }
     function status(task) { const p=progress(task); return p===100?'completed':p>0?'active':'planned'; }
     function fmtDate(date) { if(!date) return 'No due date'; const parsed=new Date(date+'T12:00:00'); return parsed.toLocaleDateString(undefined,{month:'short',day:'numeric'}); }
+    function fmtStartDate(date) { if(!date) return 'No start date'; const parsed=new Date(date+'T12:00:00'); return parsed.toLocaleDateString(undefined,{month:'short',day:'numeric'}); }
     function detectCategory(goal) {
       const text=goal.toLowerCase();
       if(/code|app|website|software|debug|program|api|extension|develop|build/.test(text)) return 'development';
@@ -1002,7 +1005,7 @@
         <h4>${escapeHtml(task.title)}</h4><p class="description">${escapeHtml(task.description)}</p>
         <div class="progress-meta"><span>${task.steps.filter(step=>step.done).length} of ${task.steps.length} steps</span><span>${p}%</span></div><div class="progress"><span style="width:${p}%"></span></div>
         <div class="chips">${task.resources.slice(0,3).map(resource=>`<span class="chip">${escapeHtml(resource.name)}</span>`).join('')}<span class="chip">${task.resources.length} resources</span></div>
-        <div class="card-actions"><span class="card-due">${escapeHtml(fmtDate(task.due))}</span><button class="btn small" data-open="${escapeHtml(task.id)}">${s==='completed'?'Review':'Open'}</button><button class="btn small ghost" data-delete="${escapeHtml(task.id)}" aria-label="Delete ${escapeHtml(task.title)}">×</button></div>
+        <div class="card-actions"><span class="card-due">${escapeHtml(fmtDate(task.due))}</span><span class="card-start">${escapeHtml(fmtStartDate(task.start))}</span><button class="btn small" data-open="${escapeHtml(task.id)}">${s==='completed'?'Review':'Open'}</button><button class="btn small ghost" data-delete="${escapeHtml(task.id)}" aria-label="Delete ${escapeHtml(task.title)}">×</button></div>
       </article>`;
     }
     function dashboardView() {
@@ -1114,6 +1117,19 @@
     function render() {
       ({dashboard:dashboardView,tasks:tasksView,board:boardView,resources:resourcesView,analytics:analyticsView,settings:settingsView}[state.view]||dashboardView)();
     }
+    function unpackStep(value) {
+      if (typeof value !== 'string') {
+        throw new Error('TaskOps received an invalid step.');
+      }
+      const timeMatch = value.match(/\s*\[TIME:\s*([^\]]+)\]\s*$/i);
+      const withoutTime = value.replace(/\s*\[TIME:\s*[^\]]+\]\s*$/i,'').trim();
+      const doneMatch = withoutTime.match(/^\[(DONE|TODO)\]\s*/i);
+      return {
+        text: withoutTime.replace(/^\[(DONE|TODO)\]\s*/i,'').trim(),
+        done: doneMatch?.[1].toUpperCase() === 'DONE',
+        timeEstimate: timeMatch?.[1].trim() || ''
+      };
+    }
     function openCreate() {
       const fragment=document.getElementById('createTemplate').content.cloneNode(true); document.body.append(fragment);
       const backdrop=document.querySelector('[data-backdrop]'); const form=document.getElementById('createForm');
@@ -1128,10 +1144,12 @@
         controller=new AbortController();
         try {
           const requestedCategory=String(data.get('category'));
-          const workflow=await generateWorkflow(goal,requestedCategory,controller.signal);
+          const start = String(data.get('start') || '');
+          const due = String(data.get('due') || '');
+          const workflow=await generateWorkflow(goal,requestedCategory,start,due,controller.signal);
           if(!backdrop.isConnected)return;
           const category=workflow.category;
-          const task={id:uid(),title:String(data.get('title')).trim()||workflow.title,description:goal,category,priority:data.get('priority'),due:data.get('due'),created:Date.now(),tools:workflow.tools,resources:buildResourceKit(goal,category),steps:workflow.steps.map(text=>({id:uid(),text,done:false}))};
+          const task={id:uid(),title:String(data.get('title')).trim()||workflow.title,description:goal,category,priority:data.get('priority'),due:data.get('due'),start:data.get('start') || '',created:Date.now(),tools:workflow.tools,resources:buildResourceKit(goal,category),steps:workflow.steps.map(text=>({id:uid(),...unpackStep(text),done:false}))};
           state.tasks.unshift(task); saveState(); close(); render(); toast('AI workflow created.'); openWorkspace(task.id);
         } catch(error) {
           if(error.name!=='AbortError'&&backdrop.isConnected) errorMessage.textContent=error.message||'TaskOps could not generate this workflow.';
@@ -1159,7 +1177,7 @@
       const list=backdrop.querySelector('#stepList');
       const resourceList=backdrop.querySelector('#workspaceResources');
       const updateProgress=()=>{const p=progress(task),s=status(task);backdrop.querySelector('#workspacePercent').textContent=p+'%';backdrop.querySelector('#workspaceBar').style.width=p+'%';const badge=backdrop.querySelector('#workspaceStatus');badge.textContent=s==='active'?'In progress':s==='planned'?'Not started':'Completed';badge.className='status '+s;};
-      const renderSteps=()=>{list.innerHTML='';task.steps.forEach(step=>{const row=document.createElement('div');row.className='step'+(step.done?' done':'');row.innerHTML=`<input type="checkbox" ${step.done?'checked':''} aria-label="Mark step complete"><input type="text" maxlength="140" aria-label="Step description"><button class="icon-btn" aria-label="Remove step">×</button>`; const text=row.querySelector('input[type=text]');text.value=step.text;row.querySelector('input[type=checkbox]').onchange=e=>{step.done=e.target.checked;saveState();renderSteps();updateProgress();};text.onchange=()=>{if(text.value.trim()){step.text=text.value.trim();saveState();}else{text.value=step.text;}};row.querySelector('button').onclick=()=>{task.steps=task.steps.filter(s=>s.id!==step.id);saveState();renderSteps();updateProgress();};list.append(row);});};
+      const renderSteps=()=>{list.innerHTML='';task.steps.forEach(step=>{const row=document.createElement('div');row.className='step'+(step.done?' done':'');row.innerHTML=`<input type="checkbox" ${step.done?'checked':''} aria-label="Mark step complete"><input type="text" maxlength="140" aria-label="Step description"><span class="step-time"></span><button class="icon-btn" aria-label="Remove step">×</button>`;row.querySelector('.step-time').textContent = step.timeEstimate || '—'; const text=row.querySelector('input[type=text]');text.value=step.text;row.querySelector('input[type=checkbox]').onchange=e=>{step.done=e.target.checked;saveState();renderSteps();updateProgress();};text.onchange=()=>{if(text.value.trim()){step.text=text.value.trim();saveState();}else{text.value=step.text;}};row.querySelector('button').onclick=()=>{task.steps=task.steps.filter(s=>s.id!==step.id);saveState();renderSteps();updateProgress();};list.append(row);});};
       const renderResources=()=>{resourceList.innerHTML='';task.resources.forEach(resource=>{const card=document.createElement('article');card.className='workspace-resource';card.innerHTML=`<div><h5>${escapeHtml(resource.name)}</h5><p>${escapeHtml(resource.description||'Saved resource')}</p><div class="workspace-resource-meta">${escapeHtml(resource.type||'Resource')} · ${resource.source==='User'?'Added by you':'Suggested for this task'}</div></div><div class="workspace-resource-actions"><a href="${escapeHtml(resource.url)}" target="_blank" rel="noopener noreferrer">Open ↗</a><button class="icon-btn" aria-label="Remove ${escapeHtml(resource.name)}">×</button></div>`;card.querySelector('button').onclick=()=>{task.resources=task.resources.filter(item=>item.id!==resource.id);saveState();renderResources();};resourceList.append(card);});if(!task.resources.length){resourceList.innerHTML='<div class="empty">No resources saved for this task.</div>';}};
       renderSteps(); renderResources(); updateProgress();
       backdrop.querySelector('#workspaceTitle').onchange=e=>{if(e.target.value.trim()){task.title=e.target.value.trim();saveState();}else e.target.value=task.title;};
@@ -1172,10 +1190,27 @@
         if(task.steps.length<1) { errorMessage.textContent='Add at least one step before adjusting the plan.'; return; }
         button.disabled=true; button.textContent='Adjusting…';
         try {
-          const result=await apiJson('/workflow/adjust',{method:'POST',body:{title:task.title,category:task.category,steps:task.steps.map(step=>step.text),instruction}});
+          const result=await apiJson('/workflow/adjust',{method:'POST',body:{title:task.title,category:task.category,start: task.start || '',due: task.due || '',steps:task.steps.map(step=>`${step.done ? '[DONE]' : '[TODO]'} ${step.text}${step.timeEstimate ? ` [TIME: ${step.timeEstimate}]` : ''}`),instruction}});
           const steps=result?.plan?.steps;
           if(!Array.isArray(steps)||steps.length<1) throw new Error('TaskOps received an invalid plan. Try again.');
-          task.steps=steps.map(text=>({id:uid(),text,done:false}));
+          task.steps = steps.map(value => {
+            if (typeof value === 'string') {
+              const label = value.match(/^\[(DONE|TODO)\]\s*/i);
+              return {
+                id: uid(),
+                ...unpackStep(value)
+              };
+            }
+            if (value && typeof value.text === 'string') {
+              return {
+                id: uid(),
+                text: value.text.trim(),
+                done: value.done === true,
+                timeEstimate: typeof value.timeEstimate === 'string' ? value.timeEstimate.trim() : ''
+              };
+            }
+            throw new Error('TaskOps received an invalid step.');
+          });
           if(Array.isArray(result?.plan?.tools)&&result.plan.tools.length) task.tools=[...new Set(result.plan.tools)];
           saveState(); renderSteps(); updateProgress();
           form.elements.instruction.value='';
