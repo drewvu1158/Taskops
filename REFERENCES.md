@@ -20,6 +20,3 @@ Google. (n.d.). *Chrome extensions documentation*. https://developer.chrome.com/
 
 Vu, A. (n.d.). *TaskOps* [Computer software]. GitHub. https://github.com/drewvu1158/Taskops
 
-## Note
-
-Use hanging indents when formatting these entries in the final report. The AWS and Atlassian entries support the services listed in the TaskOps implementation; the GitHub entry identifies the project itself.
